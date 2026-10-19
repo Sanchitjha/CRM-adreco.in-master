@@ -9,7 +9,7 @@ import { computeQuoteTotals } from "@/lib/validation/quotation";
 import { SectionCard, Avatar } from "@/components/ui";
 import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { QuoteStatusControl } from "@/components/quotations/quote-status-control";
-import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
+import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 
 function SummaryLine({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -69,15 +69,16 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <WhatsAppAction
+          <ZohoChatAction
             customerName={quote.lead.customerName}
             phone={quote.lead.phone}
+            email={quote.lead.email}
             leadId={quote.lead.id}
             quoteNumber={quote.quoteNumber}
             grandTotal={Number(quote.grandTotal)}
             productCategory={quote.lead.productCategory}
             variant="button"
-            label="Send via WhatsApp"
+            label="Send on Zoho Chat"
           />
           <QuoteStatusBadge status={quote.status} />
           <Link href={`/leads/${quote.leadId}`} className="btn btn-secondary btn-sm">
