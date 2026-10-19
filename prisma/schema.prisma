@@ -1,0 +1,315 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SALES
+  DESIGN
+  ACCOUNTS
+  INSTALLATION
+  SERVICE
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  FOLLOW_UP
+  QUOTED
+  CONVERTED
+  LOST
+}
+
+enum StageStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum DocumentStatus {
+  REQUIRED
+  RECEIVED
+  SUBMITTED
+  APPROVED
+}
+
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SurveyStatus {
+  DRAFT
+  SUBMITTED
+  REVIEWED
+}
+
+enum QuoteStatus {
+  DRAFT
+  SENT
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role
+  departmentId String?
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+
+  department Department? @relation(fields: [departmentId], references: [id])
+
+  leadsCreated       Lead[]                  @relation("LeadCreatedBy")
+  leadsAssigned      Lead[]                  @relation("LeadAssignedTo")
+  followUps          FollowUp[]
+  departmentStages   LeadDepartmentHistory[] @relation("StageAssignedTo")
+  documentsUploaded  Document[]
+  tasksAssigned      Task[]                  @relation("TaskAssignedTo")
+  tasksCreated       Task[]                  @relation("TaskAssignedBy")
+  activityLogs       ActivityLog[]
+  notifications      Notification[]
+  siteSurveys        SiteSurvey[]            @relation("SurveyBy")
+  quotations         Quotation[]             @relation("QuoteBy")
+
+  @@index([role])
+  @@index([departmentId])
+}
+
+model Department {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  sortOrder Int      @unique
+  createdAt DateTime @default(now())
+
+  users              User[]
+  leadsCurrentlyHere Lead[]                  @relation("LeadCurrentDepartment")
+  history            LeadDepartmentHistory[]
+}
+
+model Lead {
+  id               String     @id @default(cuid())
+  customerName     String
+  phone            String
+  email            String?
+  address          String?
+  productCategory  String?
+  requirementNotes String?
+  budget           Decimal?   @db.Decimal(12, 2)
+  source           String?
+  status           LeadStatus @default(NEW)
+
+  createdById String
+  createdBy   User   @relation("LeadCreatedBy", fields: [createdById], references: [id])
+
+  assignedToId String?
+  assignedTo   User?   @relation("LeadAssignedTo", fields: [assignedToId], references: [id])
+
+  currentDepartmentId String?
+  currentDepartment   Department? @relation("LeadCurrentDepartment", fields: [currentDepartmentId], references: [id])
+
+  createdAt   DateTime  @default(now())
+  convertedAt DateTime?
+
+  followUps        FollowUp[]
+  departmentStages LeadDepartmentHistory[]
+  documents        Document[]
+  tasks            Task[]
+  siteSurveys      SiteSurvey[]
+  quotations       Quotation[]
+
+  @@index([status])
+  @@index([assignedToId])
+  @@index([currentDepartmentId])
+}
+
+model SiteSurvey {
+  id           String     @id @default(cuid())
+  leadId       String
+  lead         Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  surveyedById String
+  surveyedBy   User       @relation("SurveyBy", fields: [surveyedById], references: [id])
+
+  // Requirement
+  application      String
+  siteAddress      String?
+  ambientTempC     Int?
+  requiredTempC    Int?
+  dailyDemandL     Int?
+  peakHourL        Int?
+  numberOfUsers    Int?
+  poolSize         String?
+  existingSystem   String?
+  electricalSupply String?
+  installLocation  String?
+  pipingDetails    String?
+  storageTank      String?
+
+  // Recommendation
+  recommendedModel      String?
+  recommendedCapacityKw Int?
+  recommendedQty        Int?
+  engineerRemarks       String?
+
+  status     SurveyStatus @default(DRAFT)
+  surveyDate DateTime     @default(now())
+  createdAt  DateTime     @default(now())
+
+  quotations Quotation[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([surveyedById])
+}
+
+model Quotation {
+  id           String      @id @default(cuid())
+  quoteNumber  String      @unique
+  leadId       String
+  lead         Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  siteSurveyId String?
+  siteSurvey   SiteSurvey? @relation(fields: [siteSurveyId], references: [id])
+  createdById  String
+  createdBy    User        @relation("QuoteBy", fields: [createdById], references: [id])
+
+  status             QuoteStatus @default(DRAFT)
+  discountPct        Decimal     @default(0) @db.Decimal(5, 2)
+  gstPct             Decimal     @default(18) @db.Decimal(5, 2)
+  installationCharge Decimal     @default(0) @db.Decimal(12, 2)
+  transportCharge    Decimal     @default(0) @db.Decimal(12, 2)
+  subtotal           Decimal     @default(0) @db.Decimal(12, 2)
+  grandTotal         Decimal     @default(0) @db.Decimal(12, 2)
+  validUntil         DateTime?
+  notes              String?
+  terms              String?
+  createdAt          DateTime    @default(now())
+
+  items QuotationItem[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model QuotationItem {
+  id          String    @id @default(cuid())
+  quotationId String
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int       @default(1)
+  unitPrice   Decimal   @db.Decimal(12, 2)
+  lineTotal   Decimal   @db.Decimal(12, 2)
+
+  @@index([quotationId])
+}
+
+model FollowUp {
+  id               String    @id @default(cuid())
+  leadId           String
+  lead             Lead      @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  userId           String
+  user             User      @relation(fields: [userId], references: [id])
+  note             String
+  followUpDate     DateTime  @default(now())
+  nextFollowUpDate DateTime?
+  outcome          String?
+  createdAt        DateTime  @default(now())
+
+  @@index([leadId])
+  @@index([nextFollowUpDate])
+}
+
+model LeadDepartmentHistory {
+  id           String      @id @default(cuid())
+  leadId       String
+  lead         Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  departmentId String
+  department   Department  @relation(fields: [departmentId], references: [id])
+  assignedToId String?
+  assignedTo   User?       @relation("StageAssignedTo", fields: [assignedToId], references: [id])
+  status       StageStatus @default(PENDING)
+  notes        String?
+  enteredAt    DateTime    @default(now())
+  completedAt  DateTime?
+
+  @@index([leadId])
+  @@index([departmentId])
+}
+
+model Document {
+  id           String         @id @default(cuid())
+  leadId       String
+  lead         Lead           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  docType      String
+  s3Key        String?
+  fileName     String?
+  status       DocumentStatus @default(REQUIRED)
+  uploadedById String?
+  uploadedBy   User?          @relation(fields: [uploadedById], references: [id])
+  uploadedAt   DateTime?
+  notes        String?
+  createdAt    DateTime       @default(now())
+
+  @@index([leadId])
+}
+
+model Task {
+  id           String       @id @default(cuid())
+  title        String
+  description  String?
+  assignedToId String
+  assignedTo   User         @relation("TaskAssignedTo", fields: [assignedToId], references: [id])
+  assignedById String
+  assignedBy   User         @relation("TaskAssignedBy", fields: [assignedById], references: [id])
+  leadId       String?
+  lead         Lead?        @relation(fields: [leadId], references: [id])
+  dueDate      DateTime?
+  status       TaskStatus   @default(TODO)
+  priority     TaskPriority @default(MEDIUM)
+  createdAt    DateTime     @default(now())
+
+  @@index([assignedToId])
+  @@index([status])
+}
+
+model ActivityLog {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  action     String
+  entityType String
+  entityId   String
+  details    Json?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String
+  message   String
+  leadId    String?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, read])
+}

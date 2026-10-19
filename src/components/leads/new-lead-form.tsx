@@ -1,0 +1,119 @@
+"use client";
+
+import { useActionState } from "react";
+import { TriangleAlert } from "lucide-react";
+import { createLead } from "@/app/(dashboard)/leads/actions";
+import { INITIAL_ACTION_STATE } from "@/lib/action-state";
+import { PRODUCT_CATEGORIES } from "@/lib/validation/lead";
+
+type SalesUser = { id: string; name: string };
+
+export function NewLeadForm({ salesUsers }: { salesUsers: SalesUser[] | null }) {
+  const [state, formAction, pending] = useActionState(createLead, INITIAL_ACTION_STATE);
+
+  return (
+    <form action={formAction} className="space-y-5">
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Customer name" name="customerName" required />
+        <Field label="Phone" name="phone" required />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Email" name="email" type="email" />
+        <Field label="Source" name="source" placeholder="e.g. Website enquiry, referral" />
+      </div>
+
+      <Field label="Address" name="address" placeholder="Site / billing address" />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label className="label" htmlFor="productCategory">
+            Product category
+          </label>
+          <select id="productCategory" name="productCategory" className="select" defaultValue="">
+            <option value="">Select…</option>
+            {PRODUCT_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </div>
+        <Field label="Budget (₹)" name="budget" type="number" placeholder="Estimated value" />
+      </div>
+
+      {salesUsers && (
+        <div>
+          <label className="label" htmlFor="assignedToId">
+            Assign to
+          </label>
+          <select id="assignedToId" name="assignedToId" className="select" defaultValue="">
+            <option value="">Unassigned</option>
+            {salesUsers.map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name}
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      <div>
+        <label className="label" htmlFor="requirementNotes">
+          Requirement notes
+        </label>
+        <textarea
+          id="requirementNotes"
+          name="requirementNotes"
+          rows={3}
+          className="textarea"
+          placeholder="Application, capacity, water temperature, site conditions…"
+        />
+      </div>
+
+      {state.error && (
+        <p className="form-error flex items-center gap-2">
+          <TriangleAlert className="size-4" />
+          {state.error}
+        </p>
+      )}
+
+      <div className="flex items-center gap-3 border-t border-[var(--border)] pt-4">
+        <button type="submit" disabled={pending} className="btn btn-primary">
+          {pending ? "Creating…" : "Create lead"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+function Field({
+  label,
+  name,
+  type = "text",
+  required,
+  placeholder,
+}: {
+  label: string;
+  name: string;
+  type?: string;
+  required?: boolean;
+  placeholder?: string;
+}) {
+  return (
+    <div>
+      <label htmlFor={name} className="label">
+        {label}
+        {required && <span className="text-rose-500"> *</span>}
+      </label>
+      <input
+        id={name}
+        name={name}
+        type={type}
+        required={required}
+        placeholder={placeholder}
+        className="input"
+      />
+    </div>
+  );
+}
