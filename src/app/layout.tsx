@@ -17,7 +17,7 @@ export const metadata: Metadata = {
   description: "Internal sales CRM for Adreco Engineering Pvt Ltd",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
       lang="en"
