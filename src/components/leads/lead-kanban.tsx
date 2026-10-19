@@ -15,7 +15,7 @@ import {
 } from "lucide-react";
 import { Avatar, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
-import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
+import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 import { quickMoveLeadStage } from "@/app/(dashboard)/leads/actions";
 
 export interface KanbanLead {
@@ -220,10 +220,11 @@ export function LeadKanban({
                             )}
                           </div>
 
-                          {/* 1-Click WhatsApp Trigger */}
-                          <WhatsAppAction
+                          {/* 1-Click Zoho Chat Trigger */}
+                          <ZohoChatAction
                             customerName={lead.customerName}
                             phone={lead.phone}
+                            email={lead.email}
                             leadId={lead.id}
                             productCategory={lead.productCategory}
                             budget={lead.budget}
