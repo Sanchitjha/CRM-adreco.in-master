@@ -14,6 +14,7 @@ import {
   createLeadSchema,
   updateStatusSchema,
 } from "@/lib/validation/lead";
+import { pushLeadToZoho } from "@/lib/zoho";
 
 function firstIssueMessage(issues: { message: string }[]): string {
   return issues[0]?.message ?? "Invalid input";
@@ -201,3 +202,145 @@ export async function assignLead(_prevState: ActionState, formData: FormData): P
   revalidatePath("/leads");
   return {};
 }
+
+export async function logWhatsAppInteraction(params: {
+  leadId: string;
+  phone: string;
+  message: string;
+  templateId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { success: false, error: "Unauthorized" };
+
+  await prisma.followUp.create({
+    data: {
+      leadId: params.leadId,
+      userId: session.user.id,
+      note: `[WhatsApp Message] ${params.message}`,
+      outcome: "Message sent via WhatsApp",
+    },
+  });
+
+  await logActivity({
+    userId: session.user.id,
+    action: "WHATSAPP_MESSAGE_SENT",
+    entityType: "Lead",
+    entityId: params.leadId,
+    details: { phone: params.phone, template: params.templateId },
+  });
+
+  revalidatePath(`/leads/${params.leadId}`);
+  revalidatePath("/leads");
+  return { success: true };
+}
+
+export async function quickMoveLeadStage(
+  leadId: string,
+  newStatus: import("@prisma/client").LeadStatus
+): Promise<{ success: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { success: false, error: "Unauthorized" };
+
+  const { lead, allowed } = await assertCanAccessLead(leadId, session.user.id, session.user.role);
+  if (!lead || !allowed) return { success: false, error: "Access denied" };
+
+  const isFirstConversion = newStatus === "CONVERTED" && !lead.currentDepartmentId && !lead.convertedAt;
+
+  if (isFirstConversion) {
+    const salesDept = await prisma.department.findUnique({ where: { name: "Sales" } });
+    const nextDeptName = nextDepartmentName("Sales");
+    const nextDept = nextDeptName ? await prisma.department.findUnique({ where: { name: nextDeptName } }) : null;
+
+    await prisma.$transaction(async (tx) => {
+      await tx.lead.update({
+        where: { id: leadId },
+        data: {
+          status: newStatus,
+          convertedAt: new Date(),
+          currentDepartmentId: nextDept?.id ?? null,
+        },
+      });
+
+      if (salesDept) {
+        await tx.leadDepartmentHistory.create({
+          data: {
+            leadId,
+            departmentId: salesDept.id,
+            assignedToId: lead.assignedToId,
+            status: "COMPLETED",
+            enteredAt: lead.createdAt,
+            completedAt: new Date(),
+          },
+        });
+      }
+
+      if (nextDept) {
+        await tx.leadDepartmentHistory.create({
+          data: {
+            leadId,
+            departmentId: nextDept.id,
+            status: "PENDING",
+          },
+        });
+        await createRequiredDocuments(tx, leadId, nextDept.name);
+      }
+    });
+  } else {
+    await prisma.lead.update({
+      where: { id: leadId },
+      data: { status: newStatus },
+    });
+  }
+
+  await logActivity({
+    userId: session.user.id,
+    action: "LEAD_STATUS_CHANGED",
+    entityType: "Lead",
+    entityId: leadId,
+    details: { from: lead.status, to: newStatus },
+  });
+
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath("/leads");
+  return { success: true };
+}
+
+export async function syncLeadToZohoAction(
+  leadId: string
+): Promise<{ success: boolean; message: string }> {
+  const session = await auth();
+  if (!session?.user) return { success: false, message: "Unauthorized" };
+
+  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+  if (!lead) return { success: false, message: "Lead not found" };
+
+  const result = await pushLeadToZoho({
+    id: lead.id,
+    customerName: lead.customerName,
+    phone: lead.phone,
+    email: lead.email,
+    productCategory: lead.productCategory,
+    budget: lead.budget ? Number(lead.budget) : null,
+    source: lead.source,
+    address: lead.address,
+  });
+
+  if (result.success) {
+    await logActivity({
+      userId: session.user.id,
+      action: "LEAD_SYNCED_TO_ZOHO",
+      entityType: "Lead",
+      entityId: leadId,
+      details: { zohoId: result.zohoId },
+    });
+  }
+
+  return {
+    success: result.success,
+    message: result.success
+      ? `Lead successfully synced to Zoho CRM! (Zoho ID: ${result.zohoId || "Created"})`
+      : result.message || "Failed to sync to Zoho CRM",
+  };
+}
+
+
