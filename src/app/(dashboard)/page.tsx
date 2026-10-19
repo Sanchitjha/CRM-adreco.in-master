@@ -18,7 +18,7 @@ import { ROLE_LABELS, ROLE_TO_DEPARTMENT_NAME } from "@/lib/rbac";
 import { STATUS_LABELS } from "@/components/status-badge";
 import { StatCard, SectionCard, EmptyState, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
-import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
+import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -267,7 +267,7 @@ export default async function DashboardHome() {
                       )}
                     </div>
                     <div className="flex items-center gap-2">
-                      <WhatsAppAction
+                      <ZohoChatAction
                         customerName={lead.customerName}
                         phone={lead.phone}
                         leadId={lead.id}
@@ -297,14 +297,14 @@ export default async function DashboardHome() {
                     </Link>
                     <p className="truncate text-xs text-slate-400">{lead.createdAt.toLocaleDateString("en-IN")}</p>
                   </div>
-                  <WhatsAppAction
+                  <ZohoChatAction
                     customerName={lead.customerName}
                     phone={lead.phone}
                     leadId={lead.id}
                     productCategory={lead.productCategory}
                     budget={lead.budget ? Number(lead.budget) : null}
                     variant="small"
-                    label="WhatsApp"
+                    label="Zoho Chat"
                   />
                 </li>
               ))}
