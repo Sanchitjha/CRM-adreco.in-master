@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { PageHeader, Card, Avatar, EmptyState, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
 import { LeadKanban, type KanbanLead } from "@/components/leads/lead-kanban";
-import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
+import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 import { analyzeLeadWithAi } from "@/lib/ai";
 
 export default async function LeadsPage({
@@ -155,7 +155,7 @@ export default async function LeadsPage({
               <thead>
                 <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                   <th className="px-5 py-3 font-medium text-slate-500">Customer</th>
-                  <th className="px-5 py-3 font-medium text-slate-500">WhatsApp / Phone</th>
+                  <th className="px-5 py-3 font-medium text-slate-500">Zoho Chat / Phone</th>
                   <th className="px-5 py-3 font-medium text-slate-500">Category</th>
                   <th className="px-5 py-3 font-medium text-slate-500">Budget</th>
                   <th className="px-5 py-3 font-medium text-slate-500">Status</th>
@@ -191,9 +191,10 @@ export default async function LeadsPage({
                       <td className="px-5 py-3 text-slate-600">
                         <div className="flex items-center gap-2">
                           <span>{lead.phone}</span>
-                          <WhatsAppAction
+                          <ZohoChatAction
                             customerName={lead.customerName}
                             phone={lead.phone}
+                            email={lead.email}
                             leadId={lead.id}
                             productCategory={lead.productCategory}
                             budget={lead.budget ? Number(lead.budget) : null}
