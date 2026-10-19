@@ -83,15 +83,32 @@ temporarily opening the security group), before updating the running instances.
 
 Same keys as `.env.example`, with real values:
 - `AUTH_URL` → `https://crm.adreco.in`
-- `DATABASE_URL` → the RDS connection string
-- `AWS_REGION` / `S3_BUCKET_NAME` (prefer an EC2 instance profile over static keys)
-- `SMTP_*` → your transactional email provider (AWS SES is the natural fit since you're already on AWS)
-- `CRON_SECRET` → a random value; also configure a cron job on one instance (or a small scheduled
-  Lambda) to call `POST /api/cron/digest` daily with that secret in the `x-cron-secret` header
+- `AUTH_SECRET` → secure random 32-byte base64 string
+- `DATABASE_URL` → the RDS PostgreSQL connection string
+- `AWS_REGION` / `S3_BUCKET_NAME` (prefer an EC2/ECS IAM task role over static keys)
+- `SMTP_*` → your transactional email provider (AWS SES is the natural fit)
+- `CRON_SECRET` → shared secret for scheduled digests
+- `GEMINI_API_KEY` → Google Gemini API key for AI deal scoring and automated message drafts
+- `ZOHO_CLIENT_ID` / `ZOHO_CLIENT_SECRET` / `ZOHO_REFRESH_TOKEN` → Zoho CRM OAuth 2.0 credentials
+- `NEXT_PUBLIC_ZOHO_SALESIQ_WIDGET_CODE` → Zoho SalesIQ chat widget code for live in-app chat
+
+## Deployment Options on AWS
+
+### Option 1: EC2 + Docker in Auto Scaling Group (Cost-Optimized)
+- 2x `t4g.small` or `t4g.micro` EC2 instances (ARM-based Graviton2, ~20% cheaper)
+- Managed via launch template, automatically pulling the Docker image from Amazon ECR.
+- Fronted by an Application Load Balancer with ACM SSL.
+
+### Option 2: AWS ECS Fargate (Serverless Containers - Zero Server Maintenance)
+- Run the Docker container as an ECS Fargate Service.
+- No EC2 OS patching or host management required.
+- Auto-scales container tasks automatically based on CPU/memory utilization.
+- Health checks connect directly to ALB target group on `/api/health`.
 
 ## What this buys you, and what it doesn't
 
 This design survives: a single instance crashing, a bad deploy to one instance, an AZ outage, and
 routine EC2 maintenance. It does **not** survive an RDS outage unless Multi-AZ is enabled, or a
-region-wide AWS outage (out of scope for a 10-person internal CRM — the cost/complexity of
+region-wide AWS outage (out of scope for an internal CRM — the cost/complexity of
 multi-region isn't justified here).
+
