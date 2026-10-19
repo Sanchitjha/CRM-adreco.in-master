@@ -27,9 +27,11 @@ import { AssignControl } from "@/components/leads/assign-control";
 import { FollowUpForm } from "@/components/leads/follow-up-form";
 import { StageActions } from "@/components/queue/stage-actions";
 import { DocumentsSection, type DocumentRow } from "@/components/leads/documents-section";
-import { SurveyStatusBadge } from "@/components/surveys/survey-status-badge";
-import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { SectionCard, Avatar, Badge, EmptyState } from "@/components/ui";
+import { AiLeadAdvisor } from "@/components/ai/ai-lead-advisor";
+import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
+import { ZohoSyncButton } from "@/components/leads/zoho-sync-button";
+import { analyzeLeadWithAi } from "@/lib/ai";
 
 function formatBudget(value: unknown): string {
   if (value === null || value === undefined) return "—";
