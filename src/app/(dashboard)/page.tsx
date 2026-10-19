@@ -9,6 +9,7 @@ import {
   Inbox,
   ArrowRight,
   ListChecks,
+  Sparkles,
 } from "lucide-react";
 import type { LeadStatus } from "@prisma/client";
 import { auth } from "@/auth";
@@ -16,6 +17,8 @@ import { prisma } from "@/lib/db";
 import { ROLE_LABELS, ROLE_TO_DEPARTMENT_NAME } from "@/lib/rbac";
 import { STATUS_LABELS } from "@/components/status-badge";
 import { StatCard, SectionCard, EmptyState, Badge } from "@/components/ui";
+import { formatINR } from "@/lib/utils";
+import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -161,9 +164,47 @@ export default async function DashboardHome() {
   ];
   const funnelMax = Math.max(1, ...funnel.map((f) => count(f.status)));
 
+  const activePipelineBudget = openLeads.reduce(
+    (sum, l) => (l.budget ? sum + Number(l.budget) : sum),
+    0,
+  );
+
   return (
     <div className="space-y-6">
       {header}
+
+      {/* AI Sales Copilot Briefing Banner */}
+      <div className="relative overflow-hidden rounded-2xl border border-brand-200/80 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 p-5 text-white shadow-md">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-3.5">
+            <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-brand-500/20 text-brand-300 ring-1 ring-brand-400/30">
+              <Sparkles className="size-5" />
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-brand-300">
+                  AI Sales Copilot & Omnichannel Hub
+                </span>
+                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+                  Active
+                </span>
+              </div>
+              <p className="mt-1 text-sm font-medium text-slate-200">
+                You have <span className="font-bold text-white">{openCount} active deals</span> in pipeline valued at{" "}
+                <span className="font-bold text-emerald-400">{formatINR(activePipelineBudget)}</span>.{" "}
+                {dueOrOverdue.length > 0
+                  ? `${dueOrOverdue.length} follow-up${dueOrOverdue.length === 1 ? " is" : "s are"} due for immediate outreach.`
+                  : "All follow-ups are up to date."}
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-2">
+            <Link href="/leads" className="btn btn-primary btn-sm bg-brand-500 hover:bg-brand-600 text-white">
+              Open Odoo Kanban
+            </Link>
+          </div>
+        </div>
+      </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Total leads" value={total} icon={Contact} accent="brand" href="/leads" />
@@ -225,7 +266,17 @@ export default async function DashboardHome() {
                         <p className="truncate text-xs text-slate-400">{lead.assignedTo.name}</p>
                       )}
                     </div>
-                    <DueBadge overdue={overdue} label={`${overdue ? "Overdue" : "Due"} · ${next.toLocaleDateString("en-IN")}`} />
+                    <div className="flex items-center gap-2">
+                      <WhatsAppAction
+                        customerName={lead.customerName}
+                        phone={lead.phone}
+                        leadId={lead.id}
+                        productCategory={lead.productCategory}
+                        budget={lead.budget ? Number(lead.budget) : null}
+                        variant="icon"
+                      />
+                      <DueBadge overdue={overdue} label={`${overdue ? "Overdue" : "Due"} · ${next.toLocaleDateString("en-IN")}`} />
+                    </div>
                   </li>
                 );
               })}
@@ -240,10 +291,21 @@ export default async function DashboardHome() {
             <ul className="divide-y divide-[var(--border)]">
               {neverContacted.slice(0, 6).map((lead) => (
                 <li key={lead.id} className="flex items-center justify-between gap-3 px-5 py-3">
-                  <Link href={`/leads/${lead.id}`} className="truncate text-sm font-medium text-slate-800 hover:text-brand-600">
-                    {lead.customerName}
-                  </Link>
-                  <span className="shrink-0 text-xs text-slate-400">{lead.createdAt.toLocaleDateString("en-IN")}</span>
+                  <div className="min-w-0">
+                    <Link href={`/leads/${lead.id}`} className="truncate text-sm font-medium text-slate-800 hover:text-brand-600">
+                      {lead.customerName}
+                    </Link>
+                    <p className="truncate text-xs text-slate-400">{lead.createdAt.toLocaleDateString("en-IN")}</p>
+                  </div>
+                  <WhatsAppAction
+                    customerName={lead.customerName}
+                    phone={lead.phone}
+                    leadId={lead.id}
+                    productCategory={lead.productCategory}
+                    budget={lead.budget ? Number(lead.budget) : null}
+                    variant="small"
+                    label="WhatsApp"
+                  />
                 </li>
               ))}
             </ul>

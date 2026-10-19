@@ -27,6 +27,8 @@ import { AssignControl } from "@/components/leads/assign-control";
 import { FollowUpForm } from "@/components/leads/follow-up-form";
 import { StageActions } from "@/components/queue/stage-actions";
 import { DocumentsSection, type DocumentRow } from "@/components/leads/documents-section";
+import { SurveyStatusBadge } from "@/components/surveys/survey-status-badge";
+import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { SectionCard, Avatar, Badge, EmptyState } from "@/components/ui";
 import { AiLeadAdvisor } from "@/components/ai/ai-lead-advisor";
 import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
@@ -93,6 +95,28 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     { icon: MapPin, label: "Address", value: lead.address ?? "—" },
   ];
 
+  const lastFollowUp = lead.followUps[0];
+  const daysSinceFollowUp = lastFollowUp
+    ? Math.floor((Date.now() - new Date(lastFollowUp.followUpDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+
+  const leadAiInsight = await analyzeLeadWithAi({
+    id: lead.id,
+    customerName: lead.customerName,
+    phone: lead.phone,
+    email: lead.email,
+    productCategory: lead.productCategory,
+    budget: lead.budget ? Number(lead.budget) : null,
+    status: lead.status,
+    createdAt: lead.createdAt,
+    requirementNotes: lead.requirementNotes,
+    followUpCount: lead.followUps.length,
+    lastFollowUpDaysAgo: daysSinceFollowUp,
+    hasSurvey: lead.siteSurveys.length > 0,
+    hasQuotation: lead.quotations.length > 0,
+    quotationAmount: lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null,
+  });
+
   return (
     <div className="space-y-6">
       <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
@@ -113,6 +137,18 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <WhatsAppAction
+            customerName={lead.customerName}
+            phone={lead.phone}
+            leadId={lead.id}
+            productCategory={lead.productCategory}
+            budget={lead.budget ? Number(lead.budget) : null}
+            quoteNumber={lead.quotations[0]?.quoteNumber}
+            grandTotal={lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null}
+            suggestedMessage={leadAiInsight.suggestedWhatsAppMessage}
+            variant="button"
+            label="Chat on WhatsApp"
+          />
           <StatusBadge status={lead.status} />
           {lead.currentDepartment && (
             <Badge tone="brand" dot>
@@ -125,6 +161,17 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Activity column */}
         <div className="space-y-6 lg:col-span-2">
+          {/* AI Deal Copilot & Strategic Advisor */}
+          <AiLeadAdvisor
+            customerName={lead.customerName}
+            phone={lead.phone}
+            leadId={lead.id}
+            productCategory={lead.productCategory}
+            budget={lead.budget ? Number(lead.budget) : null}
+            quoteNumber={lead.quotations[0]?.quoteNumber}
+            grandTotal={lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null}
+            insight={leadAiInsight}
+          />
           {activeStage && (
             <SectionCard title={`Currently at: ${activeStage.department.name}`} icon={Waypoints}>
               {canActOnActiveStage ? (
@@ -348,6 +395,10 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                     <AssignControl leadId={lead.id} currentAssignedToId={lead.assignedToId} salesUsers={salesUsers} />
                   </div>
                 )}
+                <div className="border-t border-[var(--border)] pt-4">
+                  <p className="label mb-2">Zoho CRM Sync</p>
+                  <ZohoSyncButton leadId={lead.id} />
+                </div>
               </div>
             </SectionCard>
           )}
