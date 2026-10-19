@@ -234,6 +234,37 @@ export async function logWhatsAppInteraction(params: {
   return { success: true };
 }
 
+export async function logZohoChatInteraction(params: {
+  leadId: string;
+  phone?: string;
+  message: string;
+  templateId?: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const session = await auth();
+  if (!session?.user) return { success: false, error: "Unauthorized" };
+
+  await prisma.followUp.create({
+    data: {
+      leadId: params.leadId,
+      userId: session.user.id,
+      note: `[Zoho Chat] ${params.message}`,
+      outcome: "Message sent via Zoho Chat",
+    },
+  });
+
+  await logActivity({
+    userId: session.user.id,
+    action: "ZOHO_CHAT_MESSAGE_SENT",
+    entityType: "Lead",
+    entityId: params.leadId,
+    details: { phone: params.phone, template: params.templateId },
+  });
+
+  revalidatePath(`/leads/${params.leadId}`);
+  revalidatePath("/leads");
+  return { success: true };
+}
+
 export async function quickMoveLeadStage(
   leadId: string,
   newStatus: import("@prisma/client").LeadStatus
