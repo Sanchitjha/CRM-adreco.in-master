@@ -277,7 +277,7 @@ model Task {
   assignedById String
   assignedBy   User         @relation("TaskAssignedBy", fields: [assignedById], references: [id])
   leadId       String?
-  lead         Lead?        @relation(fields: [leadId], references: [id])
+  lead         Lead?        @relation(fields: [leadId], references: [id], onDelete: SetNull)
   dueDate      DateTime?
   status       TaskStatus   @default(TODO)
   priority     TaskPriority @default(MEDIUM)
