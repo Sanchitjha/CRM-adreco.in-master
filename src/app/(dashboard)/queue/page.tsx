@@ -9,8 +9,9 @@ import { PageHeader, Card, EmptyState, Avatar, Badge } from "@/components/ui";
 
 export default async function QueuePage() {
   const session = await auth();
-  const role = session!.user.role;
-  const departmentName = ROLE_TO_DEPARTMENT_NAME[role];
+  if (!session?.user) redirect("/login");
+  const role = session.user.role;
+  const departmentName = role === "ADMIN" ? "Sales" : ROLE_TO_DEPARTMENT_NAME[role];
   if (!departmentName) redirect("/");
 
   const department = await prisma.department.findUnique({ where: { name: departmentName } });
