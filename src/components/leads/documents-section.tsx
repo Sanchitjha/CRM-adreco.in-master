@@ -64,9 +64,8 @@ function DocumentItem({ doc }: { doc: DocumentRow }) {
     setError(null);
     startTransition(async () => {
       try {
-        const contentType = file.type || "application/octet-stream";
-        const { url, key } = await requestUploadUrl(doc.id, file.name, contentType);
-        const res = await fetch(url, { method: "PUT", body: file, headers: { "Content-Type": contentType } });
+        const { url, key } = await requestUploadUrl(doc.id, file.name, file.type || "application/octet-stream");
+        const res = await fetch(url, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
         if (!res.ok) throw new Error("Upload to storage failed.");
         await confirmUpload(doc.id, key, file.name);
       } catch (err) {
