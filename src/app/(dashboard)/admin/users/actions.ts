@@ -13,7 +13,7 @@ import { z } from "zod";
 
 async function requireAdmin() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") throw new Error("Admin access required.");
+  if (session?.user.role !== "ADMIN") throw new Error("Admin access required.");
   return session;
 }
 
