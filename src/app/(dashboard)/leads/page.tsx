@@ -8,7 +8,7 @@ import { PageHeader, Card, Avatar, EmptyState, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
 import { LeadKanban, type KanbanLead } from "@/components/leads/lead-kanban";
 import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
-import { analyzeLeadWithAi } from "@/lib/ai";
+import { generateHeuristicInsight } from "@/lib/ai";
 
 export default async function LeadsPage({
   searchParams,
@@ -42,51 +42,49 @@ export default async function LeadsPage({
     orderBy: { createdAt: "desc" },
   });
 
-  // Map to KanbanLead with AI intelligence
-  const kanbanLeads: KanbanLead[] = await Promise.all(
-    leads.map(async (l) => {
-      const lastFollowUp = l.followUps[0];
-      const daysSinceFollowUp = lastFollowUp
-        ? Math.floor((Date.now() - new Date(lastFollowUp.followUpDate).getTime()) / (1000 * 60 * 60 * 24))
-        : null;
+  // Map to KanbanLead with instant heuristic scoring (zero external LLM rate-limit latency)
+  const kanbanLeads: KanbanLead[] = leads.map((l) => {
+    const lastFollowUp = l.followUps[0];
+    const daysSinceFollowUp = lastFollowUp
+      ? Math.floor((Date.now() - new Date(lastFollowUp.followUpDate).getTime()) / (1000 * 60 * 60 * 24))
+      : null;
 
-      const insight = await analyzeLeadWithAi({
-        id: l.id,
-        customerName: l.customerName,
-        phone: l.phone,
-        email: l.email,
-        productCategory: l.productCategory,
-        budget: l.budget ? Number(l.budget) : null,
-        status: l.status,
-        createdAt: l.createdAt,
-        requirementNotes: l.requirementNotes,
-        hasSurvey: l.siteSurveys.length > 0,
-        hasQuotation: l.quotations.length > 0,
-        quotationAmount: l.quotations[0] ? Number(l.quotations[0].grandTotal) : null,
-        lastFollowUpDaysAgo: daysSinceFollowUp,
-      });
+    const insight = generateHeuristicInsight({
+      id: l.id,
+      customerName: l.customerName,
+      phone: l.phone,
+      email: l.email,
+      productCategory: l.productCategory,
+      budget: l.budget ? Number(l.budget) : null,
+      status: l.status,
+      createdAt: l.createdAt,
+      requirementNotes: l.requirementNotes,
+      hasSurvey: l.siteSurveys.length > 0,
+      hasQuotation: l.quotations.length > 0,
+      quotationAmount: l.quotations[0] ? Number(l.quotations[0].grandTotal) : null,
+      lastFollowUpDaysAgo: daysSinceFollowUp,
+    });
 
-      return {
-        id: l.id,
-        customerName: l.customerName,
-        phone: l.phone,
-        email: l.email,
-        productCategory: l.productCategory,
-        budget: l.budget ? Number(l.budget) : null,
-        status: l.status,
-        createdAt: l.createdAt.toISOString(),
-        assignedToName: l.assignedTo?.name ?? null,
-        assignedToId: l.assignedToId,
-        followUpCount: l.followUps.length,
-        lastFollowUpDaysAgo: daysSinceFollowUp,
-        hasSurvey: l.siteSurveys.length > 0,
-        hasQuotation: l.quotations.length > 0,
-        quotationAmount: l.quotations[0] ? Number(l.quotations[0].grandTotal) : null,
-        aiScore: insight.score,
-        aiWinProbability: insight.winProbability,
-      };
-    }),
-  );
+    return {
+      id: l.id,
+      customerName: l.customerName,
+      phone: l.phone,
+      email: l.email,
+      productCategory: l.productCategory,
+      budget: l.budget ? Number(l.budget) : null,
+      status: l.status,
+      createdAt: l.createdAt.toISOString(),
+      assignedToName: l.assignedTo?.name ?? null,
+      assignedToId: l.assignedToId,
+      followUpCount: l.followUps.length,
+      lastFollowUpDaysAgo: daysSinceFollowUp,
+      hasSurvey: l.siteSurveys.length > 0,
+      hasQuotation: l.quotations.length > 0,
+      quotationAmount: l.quotations[0] ? Number(l.quotations[0].grandTotal) : null,
+      aiScore: insight.score,
+      aiWinProbability: insight.winProbability,
+    };
+  });
 
   const cols = role === "ADMIN" ? 7 : 6;
 
