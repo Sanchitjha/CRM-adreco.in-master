@@ -38,7 +38,7 @@ export interface LeadForAi {
  * Heuristic fallback engine providing instant, zero-latency CRM insights
  * without requiring external API calls or keys.
  */
-export function generateHeuristicInsight(lead: LeadForAi): LeadAiInsight {
+function generateHeuristicInsight(lead: LeadForAi): LeadAiInsight {
   let score = 50;
   let urgency: "Urgent" | "Normal" | "Low" = "Normal";
 
