@@ -10,10 +10,10 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    // Verify secret if set
+    // Verify secret
     const configuredSecret = process.env.ZOHO_WEBHOOK_SECRET;
     const incomingSecret = req.headers.get("x-zoho-secret");
-    if (configuredSecret && incomingSecret !== configuredSecret) {
+    if (!configuredSecret || incomingSecret !== configuredSecret) {
       return NextResponse.json({ error: "Unauthorized Zoho Webhook" }, { status: 401 });
     }
 
