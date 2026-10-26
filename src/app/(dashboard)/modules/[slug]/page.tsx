@@ -9,7 +9,7 @@ export function generateStaticParams() {
 
 export default async function ModulePage({ params }: { params: Promise<{ slug: string }> }) {
   const session = await auth();
-  if (session?.user.role !== "ADMIN") redirect("/");
+  if (!session?.user || session.user.role !== "ADMIN") redirect("/");
 
   const { slug } = await params;
   const mod = MODULES[slug];
