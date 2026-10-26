@@ -8,7 +8,7 @@ import { PageHeader, SectionCard } from "@/components/ui";
 
 export default async function AdminUsersPage() {
   const session = await auth();
-  if (!session?.user || session.user.role !== "ADMIN") redirect("/");
+  if (session?.user.role !== "ADMIN") redirect("/");
 
   const users = await prisma.user.findMany({
     orderBy: [{ active: "desc" }, { name: "asc" }],
