@@ -29,19 +29,8 @@ async function canQuoteLead(leadId: string, userId: string, role: string): Promi
 
 async function nextQuoteNumber(): Promise<string> {
   const year = new Date().getFullYear();
-  const prefix = `Q-${year}-`;
-  const latest = await prisma.quotation.findFirst({
-    where: { quoteNumber: { startsWith: prefix } },
-    orderBy: { quoteNumber: "desc" },
-    select: { quoteNumber: true },
-  });
-  let seq = 1;
-  if (latest?.quoteNumber) {
-    const parts = latest.quoteNumber.split("-");
-    const lastNum = parseInt(parts[parts.length - 1], 10);
-    if (!isNaN(lastNum)) seq = lastNum + 1;
-  }
-  return `${prefix}${seq.toString().padStart(4, "0")}`;
+  const count = await prisma.quotation.count();
+  return `Q-${year}-${(count + 1).toString().padStart(4, "0")}`;
 }
 
 export async function createQuotation(_prevState: ActionState, formData: FormData): Promise<ActionState> {
