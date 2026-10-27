@@ -23,10 +23,4 @@ export default auth((req) => {
   }
 
   if (isLoggedIn && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", req.nextUrl.origin));
-  }
-});
-
-export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
-};
+    return NextResponse.redirect(new URL("/",
