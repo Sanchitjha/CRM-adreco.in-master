@@ -204,7 +204,7 @@ export default async function DashboardHome() {
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <Link href="/leads" className="btn btn-primary btn-sm bg-brand-500 hover:bg-brand-600 text-white">
-              Open Odoo Kanban
+              Open pipeline board
             </Link>
           </div>
         </div>
