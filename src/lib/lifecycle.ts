@@ -144,18 +144,18 @@ export type InstallChecklistItem = { id: string; label: string; done: boolean };
 export type CheckResult = "PENDING" | "PASS" | "FAIL";
 export type CommissioningCheckItem = { id: string; label: string; result: CheckResult; reading: string };
 
-function newId(): string {
+export function newChecklistId(): string {
   return globalThis.crypto.randomUUID();
 }
 
 export function buildInstallChecklist(labels: readonly string[] = DEFAULT_INSTALL_CHECKLIST): InstallChecklistItem[] {
-  return labels.map((label) => ({ id: newId(), label, done: false }));
+  return labels.map((label) => ({ id: newChecklistId(), label, done: false }));
 }
 
 export function buildCommissioningChecklist(
   labels: readonly string[] = DEFAULT_COMMISSIONING_CHECKLIST,
 ): CommissioningCheckItem[] {
-  return labels.map((label) => ({ id: newId(), label, result: "PENDING", reading: "" }));
+  return labels.map((label) => ({ id: newChecklistId(), label, result: "PENDING", reading: "" }));
 }
 
 /** Tolerant readers: stored JSON is only ever written by this app, but a bad row should not break the page. */
