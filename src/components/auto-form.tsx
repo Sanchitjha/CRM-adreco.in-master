@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useRef } from "react";
+import { useActionState, useEffect, useId, useRef } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 
@@ -61,6 +61,8 @@ export function AutoForm({
 }) {
   const [state, formAction, pending] = useActionState(action, INITIAL_ACTION_STATE);
   const formRef = useRef<HTMLFormElement>(null);
+  // Several forms can share a page and a field name, so each form namespaces its element ids.
+  const formId = useId();
 
   useEffect(() => {
     if (resetOnSuccess && state.message && !state.error) formRef.current?.reset();
@@ -79,7 +81,7 @@ export function AutoForm({
           .filter((f): f is Exclude<FieldDef, { kind: "hidden" }> => f.kind !== "hidden")
           .map((f) => (
             <div key={f.name} className={f.span === 2 || f.kind === "checkboxes" ? "sm:col-span-2" : ""}>
-              <FieldInput field={f} />
+              <FieldInput field={f} formId={formId} />
             </div>
           ))}
       </div>
@@ -106,8 +108,8 @@ export function AutoForm({
   );
 }
 
-function FieldInput({ field }: { field: Exclude<FieldDef, { kind: "hidden" }> }) {
-  const id = `f-${field.name}`;
+function FieldInput({ field, formId }: { field: Exclude<FieldDef, { kind: "hidden" }>; formId: string }) {
+  const id = `${formId}-${field.name}`;
   const required = "required" in field ? field.required : false;
 
   const label = (
