@@ -5,10 +5,14 @@ import { Plus, Trash2, TriangleAlert } from "lucide-react";
 import { createQuotation } from "@/app/(dashboard)/quotations/actions";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
+import { addCatalogLine, type CatalogProduct, type QuoteRow } from "@/lib/quotation-lines";
 import { formatINR } from "@/lib/utils";
 
 type LeadOption = { id: string; customerName: string };
-type Row = { description: string; quantity: string; unitPrice: string };
+type Row = QuoteRow;
+
+const catalogLabel = (p: CatalogProduct) =>
+  `${p.name} (${p.modelCode}) — ${p.customerPrice === null ? "no price set" : formatINR(p.customerPrice)}`;
 
 const num = (v: string) => {
   const n = Number(v);
@@ -17,10 +21,13 @@ const num = (v: string) => {
 
 export function NewQuotationForm({
   leads,
+  products = [],
   lockedLeadId,
   lockedSurveyId,
 }: {
   leads: LeadOption[];
+  /** Active catalog products to pick line items from; empty hides the picker. */
+  products?: CatalogProduct[];
   lockedLeadId?: string;
   lockedSurveyId?: string;
 }) {
@@ -63,6 +70,13 @@ export function NewQuotationForm({
   function removeRow(i: number) {
     setRows((rs) => (rs.length === 1 ? rs : rs.filter((_, idx) => idx !== i)));
   }
+  function addFromCatalog(productId: string) {
+    const product = products.find((p) => p.id === productId);
+    if (product) setRows((rs) => addCatalogLine(rs, product));
+  }
+
+  const machines = products.filter((p) => !p.isSparePart);
+  const spareParts = products.filter((p) => p.isSparePart);
 
   return (
     <form action={formAction} className="space-y-8">
@@ -103,12 +117,48 @@ export function NewQuotationForm({
 
       {/* Line items */}
       <section>
-        <div className="mb-3 flex items-center justify-between">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h3 className="text-sm font-semibold text-slate-900">Line items</h3>
-          <button type="button" onClick={addRow} className="btn btn-secondary btn-sm">
-            <Plus className="size-3.5" />
-            Add item
-          </button>
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            {products.length > 0 && (
+              <>
+                <label htmlFor="catalogProduct" className="sr-only">
+                  Add a product from the catalog
+                </label>
+                {/* No name and a fixed empty value: picking a product adds a row, then the box returns to its prompt. */}
+                <select
+                  id="catalogProduct"
+                  value=""
+                  onChange={(e) => addFromCatalog(e.target.value)}
+                  className="select w-full min-w-0 py-1.5 text-sm sm:w-auto sm:max-w-80"
+                >
+                  <option value="">Add from product catalog…</option>
+                  {machines.length > 0 && (
+                    <optgroup label="Machines">
+                      {machines.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {catalogLabel(p)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                  {spareParts.length > 0 && (
+                    <optgroup label="Spare parts">
+                      {spareParts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {catalogLabel(p)}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </>
+            )}
+            <button type="button" onClick={addRow} className="btn btn-secondary btn-sm">
+              <Plus className="size-3.5" />
+              Add item
+            </button>
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-lg border border-[var(--border)]">
