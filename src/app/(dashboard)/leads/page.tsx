@@ -93,7 +93,7 @@ export default async function LeadsPage({
       <PageHeader
         icon={Contact}
         title="Leads & Sales Pipeline"
-        description="Odoo-grade pipeline management, WhatsApp omnichannel chat, and AI lead advisor."
+        description="Pipeline management, WhatsApp omnichannel chat and an AI lead advisor."
         actions={
           <div className="flex items-center gap-2">
             {/* View Switcher */}
@@ -143,7 +143,7 @@ export default async function LeadsPage({
         </div>
       )}
 
-      {/* Conditional View: Kanban (Odoo style) vs Table */}
+      {/* Conditional View: Kanban board vs Table */}
       {!isTableView ? (
         <LeadKanban initialLeads={kanbanLeads} canEdit={role === "ADMIN" || role === "SALES"} />
       ) : (
