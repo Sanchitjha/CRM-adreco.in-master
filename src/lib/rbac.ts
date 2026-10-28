@@ -105,6 +105,9 @@ export function canCreate(role: Role, module: ModuleKey): boolean {
   return (access.create ?? access.manage).includes(role);
 }
 
+/** Roles whose people go out to sites, so jobs, tickets and visits can be assigned to them. */
+export const FIELD_ROLES: Role[] = ["INSTALLATION", "SERVICE"];
+
 /** Dealer and customer prices are commercial information — hidden from the field teams. */
 export function canSeePricing(role: Role): boolean {
   return role === "ADMIN" || role === "SALES" || role === "DESIGN" || role === "ACCOUNTS";
