@@ -19,6 +19,8 @@ import { STATUS_LABELS } from "@/components/status-badge";
 import { StatCard, SectionCard, EmptyState, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
 import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
+import { LifecycleStatsRow } from "@/components/lifecycle-stats-row";
+import { lifecycleStats } from "@/lib/lifecycle-stats";
 
 function greeting(): string {
   const h = new Date().getHours();
@@ -38,7 +40,8 @@ export default async function DashboardHome() {
   const todayEnd = endOfDay(new Date());
   const now = new Date();
 
-  const [myTasks, myOpenTasks] = await Promise.all([
+  const [stats, myTasks, myOpenTasks] = await Promise.all([
+    lifecycleStats(role, userId),
     prisma.task.findMany({
       where: { assignedToId: userId, status: { not: "DONE" }, dueDate: { lte: todayEnd } },
       orderBy: { dueDate: "asc" },
@@ -99,6 +102,7 @@ export default async function DashboardHome() {
           <StatCard label="Tasks due / overdue" value={myTasks.length} icon={CalendarClock} accent="amber" href="/tasks" />
           <StatCard label="Open tasks" value={myOpenTasks} icon={ClipboardList} accent="slate" href="/tasks" />
         </div>
+        <LifecycleStatsRow stats={stats} />
         <div className="grid gap-5 lg:grid-cols-2">
           <SectionCard
             title={`${departmentName} queue`}
@@ -212,6 +216,8 @@ export default async function DashboardHome() {
         <StatCard label="Converted" value={converted} icon={CircleCheckBig} accent="emerald" hint={`${conversionRate}% win rate`} />
         <StatCard label="Follow-ups due" value={dueOrOverdue.length} icon={CalendarClock} accent="amber" hint="Due today or overdue" />
       </div>
+
+      <LifecycleStatsRow stats={stats} />
 
       <div className="grid gap-5 lg:grid-cols-3">
         <SectionCard title="Sales funnel" description="Leads by stage" icon={Waypoints} className="lg:col-span-2">
