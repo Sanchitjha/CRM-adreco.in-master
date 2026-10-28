@@ -7,7 +7,6 @@ import { logActivity } from "@/lib/activity-log";
 import { requireUser, type SessionUser } from "@/lib/action-auth";
 import { FIELD_ROLES, canCreate, canManage } from "@/lib/rbac";
 import { canSeeLead } from "@/lib/scope";
-import { isFieldTechnician } from "@/lib/people";
 import { nextNumber } from "@/lib/sequence";
 import { getSlaPolicies } from "@/lib/settings";
 import { slaDueAt } from "@/lib/lifecycle";
@@ -99,7 +98,14 @@ export async function assignTicket(_prev: ActionState, formData: FormData): Prom
   const { ticket, error } = await loadTicket(parsed.data.ticketId, user);
   if (!ticket) return { error };
   if (ticket.status === "CLOSED") return { error: "Reopen the ticket before reassigning it." };
-  if (!(await isFieldTechnician(parsed.data.technicianId))) return { error: "Choose an active service or installation team member." };
+
+  const technician = await prisma.user.findUnique({
+    where: { id: parsed.data.technicianId },
+    select: { name: true, active: true, role: true },
+  });
+  if (!technician || !technician.active || !FIELD_ROLES.includes(technician.role)) {
+    return { error: "Choose an active service or installation team member." };
+  }
 
   await prisma.serviceTicket.update({
     where: { id: ticket.id },
@@ -110,7 +116,7 @@ export async function assignTicket(_prev: ActionState, formData: FormData): Prom
     action: "TICKET_ASSIGNED",
     entityType: "ServiceTicket",
     entityId: ticket.id,
-    details: { note: parsed.data.technicianId },
+    details: { note: technician.name },
   });
 
   revalidateTicket(ticket.id);
