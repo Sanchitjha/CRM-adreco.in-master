@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { Boxes, IndianRupee, Package, Pencil, Plus, ScanBarcode, Wrench } from "lucide-react";
+import { Boxes, IndianRupee, Pencil, Plus, ScanBarcode, Wrench } from "lucide-react";
 import { requireUser } from "@/lib/action-auth";
 import { prisma } from "@/lib/db";
 import { canManage, canSeePricing, canView } from "@/lib/rbac";
