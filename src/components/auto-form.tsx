@@ -202,7 +202,7 @@ function FieldInput({ field }: { field: Exclude<FieldDef, { kind: "hidden" }> })
             </div>
           )}
           {hint}
-        </>
+        </fieldset>
       );
     default: {
       const listId = field.list ? `${id}-list` : undefined;
