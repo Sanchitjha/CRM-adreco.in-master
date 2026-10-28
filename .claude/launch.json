@@ -7,6 +7,13 @@
       "runtimeArgs": ["run", "dev"],
       "port": 3000,
       "autoPort": true
+    },
+    {
+      "name": "adreco-crm-local-copy",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "C:/dev/adreco-crm", "run", "dev"],
+      "port": 3000,
+      "autoPort": true
     }
   ]
 }
