@@ -76,9 +76,9 @@ export function AutoForm({
 
       <div className={`grid gap-4 ${columns === 2 ? "sm:grid-cols-2" : ""}`}>
         {fields
-          .filter((f) => f.kind !== "hidden")
+          .filter((f): f is Exclude<FieldDef, { kind: "hidden" }> => f.kind !== "hidden")
           .map((f) => (
-            <div key={f.name} className={f.kind !== "hidden" && (f.span === 2 || f.kind === "checkboxes") ? "sm:col-span-2" : ""}>
+            <div key={f.name} className={f.span === 2 || f.kind === "checkboxes" ? "sm:col-span-2" : ""}>
               <FieldInput field={f} />
             </div>
           ))}
