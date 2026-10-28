@@ -87,6 +87,17 @@ model User {
   siteSurveys        SiteSurvey[]            @relation("SurveyBy")
   quotations         Quotation[]             @relation("QuoteBy")
 
+  salesOrders           SalesOrder[]    @relation("OrderBy")
+  installationsCreated  Installation[]  @relation("InstallBy")
+  installationsAssigned Installation[]  @relation("InstallTech")
+  commissionings        Commissioning[] @relation("CommissionBy")
+  ticketsRaised         ServiceTicket[] @relation("TicketBy")
+  ticketsAssigned       ServiceTicket[] @relation("TicketTech")
+  claimsRaised          WarrantyClaim[] @relation("ClaimBy")
+  claimsDecided         WarrantyClaim[] @relation("ClaimDecidedBy")
+  amcContracts          AmcContract[]   @relation("AmcBy")
+  amcVisits             AmcVisit[]      @relation("AmcVisitTech")
+
   @@index([role])
   @@index([departmentId])
 }
@@ -133,9 +144,19 @@ model Lead {
   siteSurveys      SiteSurvey[]
   quotations       Quotation[]
 
+  dealerId String?
+  dealer   Dealer? @relation(fields: [dealerId], references: [id])
+
+  salesOrders   SalesOrder[]
+  installations Installation[]
+  serialNumbers SerialNumber[]
+  tickets       ServiceTicket[]
+  amcContracts  AmcContract[]
+
   @@index([status])
   @@index([assignedToId])
   @@index([currentDepartmentId])
+  @@index([dealerId])
 }
 
 model SiteSurvey {
@@ -199,7 +220,8 @@ model Quotation {
   terms              String?
   createdAt          DateTime    @default(now())
 
-  items QuotationItem[]
+  items      QuotationItem[]
+  salesOrder SalesOrder?
 
   @@index([leadId])
   @@index([status])
