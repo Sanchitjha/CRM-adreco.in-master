@@ -126,6 +126,7 @@ function FieldInput({ field, formId }: { field: Exclude<FieldDef, { kind: "hidde
         <>
           {label}
           <select
+            key={field.defaultValue ?? ""}
             id={id}
             name={field.name}
             required={field.required}
