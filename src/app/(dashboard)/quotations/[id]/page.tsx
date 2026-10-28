@@ -3,7 +3,7 @@ import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, FileText, ExternalLink, ClipboardCheck, ShoppingCart } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { canAccessQuotations, canManage, canView } from "@/lib/rbac";
+import { canAccessQuotations, canManage, canView as canViewModule } from "@/lib/rbac";
 import { formatINR } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
 import { SectionCard, Avatar } from "@/components/ui";
@@ -171,7 +171,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
           {(quote.salesOrder || (canManage(role, "salesOrders") && quote.status === "ACCEPTED")) && (
             <SectionCard title="Sales order" description="Confirm the order once the customer accepts" icon={ShoppingCart}>
               {quote.salesOrder ? (
-                canView(role, "salesOrders") ? (
+                canViewModule(role, "salesOrders") ? (
                   <Link href={`/sales-orders/${quote.salesOrder.id}`} className="btn btn-secondary w-full">
                     Open {quote.salesOrder.orderNumber}
                   </Link>
