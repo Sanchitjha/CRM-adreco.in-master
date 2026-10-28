@@ -1,4 +1,5 @@
 import type { Role } from "@prisma/client";
+import { MODULE_ACCESS } from "@/lib/rbac";
 import {
   LayoutDashboard,
   Contact,
@@ -26,8 +27,6 @@ export type NavItem = {
   href: string;
   icon: LucideIcon;
   roles: Role[];
-  /** Roadmap module — routed to a shared preview page, shown to admins only. */
-  planned?: boolean;
 };
 
 export type NavGroup = {
@@ -57,41 +56,41 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Site surveys", href: "/surveys", icon: ClipboardCheck, roles: ["ADMIN", "SALES", "DESIGN"] },
       { label: "Quotations", href: "/quotations", icon: FileText, roles: ["ADMIN", "SALES", "DESIGN"] },
-      { label: "Sales orders", href: "/modules/sales-orders", icon: ShoppingCart, roles: ADMIN_ONLY, planned: true },
+      { label: "Sales orders", href: "/sales-orders", icon: ShoppingCart, roles: MODULE_ACCESS.salesOrders.view },
     ],
   },
   {
     title: "Projects",
     items: [
-      { label: "Installations", href: "/modules/installations", icon: Wrench, roles: ADMIN_ONLY, planned: true },
-      { label: "Commissioning", href: "/modules/commissioning", icon: Gauge, roles: ADMIN_ONLY, planned: true },
+      { label: "Installations", href: "/installations", icon: Wrench, roles: MODULE_ACCESS.installations.view },
+      { label: "Commissioning", href: "/commissioning", icon: Gauge, roles: MODULE_ACCESS.commissioning.view },
     ],
   },
   {
     title: "Catalog",
     items: [
-      { label: "Products", href: "/modules/products", icon: Package, roles: ADMIN_ONLY, planned: true },
-      { label: "Serial numbers", href: "/modules/serial-numbers", icon: ScanBarcode, roles: ADMIN_ONLY, planned: true },
+      { label: "Products", href: "/products", icon: Package, roles: MODULE_ACCESS.products.view },
+      { label: "Serial numbers", href: "/serial-numbers", icon: ScanBarcode, roles: MODULE_ACCESS.serials.view },
     ],
   },
   {
     title: "Service",
     items: [
-      { label: "Tickets", href: "/modules/service-tickets", icon: LifeBuoy, roles: ADMIN_ONLY, planned: true },
-      { label: "Warranty", href: "/modules/warranty", icon: ShieldCheck, roles: ADMIN_ONLY, planned: true },
-      { label: "AMC contracts", href: "/modules/amc", icon: CalendarClock, roles: ADMIN_ONLY, planned: true },
+      { label: "Tickets", href: "/tickets", icon: LifeBuoy, roles: MODULE_ACCESS.tickets.view },
+      { label: "Warranty", href: "/warranty", icon: ShieldCheck, roles: MODULE_ACCESS.warranty.view },
+      { label: "AMC contracts", href: "/amc", icon: CalendarClock, roles: MODULE_ACCESS.amc.view },
     ],
   },
   {
     title: "Partners",
-    items: [{ label: "Dealers", href: "/modules/dealers", icon: Handshake, roles: ADMIN_ONLY, planned: true }],
+    items: [{ label: "Dealers", href: "/dealers", icon: Handshake, roles: MODULE_ACCESS.dealers.view }],
   },
   {
     title: "Administration",
     items: [
       { label: "Users", href: "/admin/users", icon: Users, roles: ADMIN_ONLY },
       { label: "Reports", href: "/admin/reports", icon: BarChart3, roles: ADMIN_ONLY },
-      { label: "Settings", href: "/modules/settings", icon: Settings, roles: ADMIN_ONLY, planned: true },
+      { label: "Settings", href: "/settings", icon: Settings, roles: MODULE_ACCESS.settings.view },
     ],
   },
 ];
