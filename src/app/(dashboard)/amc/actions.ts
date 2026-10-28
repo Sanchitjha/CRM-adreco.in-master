@@ -9,6 +9,7 @@ import { FIELD_ROLES, canManage } from "@/lib/rbac";
 import { canSeeLead } from "@/lib/scope";
 import { isFieldTechnician } from "@/lib/people";
 import { nextNumber } from "@/lib/sequence";
+import { formatDate } from "@/lib/dates";
 import { addDaysUtc, buildVisitSchedule, daysBetween } from "@/lib/lifecycle";
 import type { ActionState } from "@/lib/action-state";
 import { dateOrNull, firstIssueMessage, textOrNull } from "@/lib/validation/common";
@@ -158,7 +159,7 @@ export async function renewAmc(_prev: ActionState, formData: FormData): Promise<
   const end = addDaysUtc(start, lengthDays);
 
   const clash = await overlappingUnits(old.units.map((u) => u.serialNumberId), start, end, old.id);
-  if (clash.length > 0) return { error: `Already covered from ${start.toLocaleDateString("en-IN")}: ${clash.slice(0, 5).join(", ")}.` };
+  if (clash.length > 0) return { error: `Already covered from ${formatDate(start)}: ${clash.slice(0, 5).join(", ")}.` };
 
   const renewal = await prisma.$transaction(async (tx) =>
     tx.amcContract.create({
