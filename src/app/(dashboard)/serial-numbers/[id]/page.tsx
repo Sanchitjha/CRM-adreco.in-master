@@ -12,6 +12,7 @@ import { SectionCard } from "@/components/ui";
 import { ActivityTimeline, BackLink, CustomerLink, InfoGrid, StatusPill } from "@/components/page-kit";
 import { AutoForm } from "@/components/auto-form";
 import { ActionButton } from "@/components/action-forms";
+import { updateWarrantyDates } from "../../warranty/actions";
 import { toggleSerialScrapped, updateSerial } from "../actions";
 
 function RecordLink({ show, href, children }: { show: boolean; href: string; children: React.ReactNode }) {
@@ -241,6 +242,26 @@ export default async function SerialDetailPage({ params }: { params: Promise<{ i
               ]}
             />
           </SectionCard>
+
+          {user.role === "ADMIN" && serial.status !== "IN_STOCK" && serial.status !== "SCRAPPED" && (
+            <SectionCard
+              title="Warranty dates"
+              description="Correct the dates or grant an extension"
+              icon={ShieldCheck}
+            >
+              <AutoForm
+                action={updateWarrantyDates}
+                submitLabel="Update warranty"
+                columns={1}
+                compact
+                fields={[
+                  { kind: "hidden", name: "serialId", value: serial.id },
+                  { name: "warrantyStartsOn", label: "Warranty starts", kind: "date", required: true, defaultValue: toDateInput(serial.warrantyStartsOn) },
+                  { name: "warrantyEndsOn", label: "Warranty ends", kind: "date", required: true, defaultValue: toDateInput(serial.warrantyEndsOn) },
+                ]}
+              />
+            </SectionCard>
+          )}
 
           {manage && (
             <SectionCard title="Edit" icon={Wrench}>
