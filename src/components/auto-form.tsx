@@ -80,7 +80,7 @@ export function AutoForm({
         {fields
           .filter((f): f is Exclude<FieldDef, { kind: "hidden" }> => f.kind !== "hidden")
           .map((f) => (
-            <div key={f.name} className={f.span === 2 || f.kind === "checkboxes" ? "sm:col-span-2" : ""}>
+            <div key={f.name} className={columns === 2 && (f.span === 2 || f.kind === "checkboxes") ? "sm:col-span-2" : ""}>
               <FieldInput field={f} formId={formId} />
             </div>
           ))}
