@@ -67,15 +67,20 @@ breakdown. Built so far: Phase 1 (Foundation), Phase 2 (Sales core — leads, fo
 Phase 3 (Department workflow — conversion handoff, department queues, lead timeline), Phase 4
 (Documents — S3 upload/download, per-stage required-document checklist), Phase 5 (Admin panel — user
 management, task assignment, reporting), and Phase 6 (Notifications — due/overdue dashboard widgets,
-email digest route), and the first lifecycle modules — **Site Surveys** (capture a lead's technical
-requirement on-site) and **Quotations** (line-item proposals with discount, GST and charges, tied to
-a lead and optionally a survey). Remaining: the rest of the roadmap modules (Sales Orders,
-Installations, Serial Numbers, Warranty, AMC, Dealers) and Phase 7 (production readiness — Dockerfile,
-tests, AWS deployment guide).
+email digest route), and the customer-lifecycle modules — **Site Surveys**, **Quotations**,
+**Sales orders** (convert an accepted quote, dispatch with serial numbers), **Installations**
+(job checklist and customer sign-off), **Commissioning** (pass/fail checks that start the warranty),
+**Products** and **Serial numbers** (a catalog and a per-machine trail), **Service tickets** (SLA,
+technician view, spare parts that deduct stock), **Warranty** (expiry tracking and claims),
+**AMC contracts** (scheduled visits and 60/30/7-day renewals), **Dealers** (targets, stock, sourced
+leads) and **Settings** (company profile, SLAs and the editable pick-lists).
 
-> The Site Surveys and Quotations modules add `SiteSurvey`, `Quotation` and `QuotationItem` models to
-> `schema.prisma`. Apply them to your database with `npx prisma migrate dev` (local) or
-> `npm run db:migrate:deploy` once a migration exists.
+Who sees what is defined in one place, `MODULE_ACCESS` in `src/lib/rbac.ts`. Sales reps only see
+records for leads assigned to them.
+
+> The lifecycle modules are in the `lifecycle_modules` migration, which also loads the default
+> pick-lists, SLA targets and company profile. Apply it with `npx prisma migrate dev` (local) or
+> `npm run db:migrate:deploy` (deployed).
 
 ## Deployment (AWS)
 
