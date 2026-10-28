@@ -216,12 +216,13 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                 {order.serialNumbers.map((u) => (
                   <li key={u.id} className="flex items-center justify-between gap-3 px-5 py-3">
                     <div className="min-w-0">
-                      <Link
-                        href={canView(user.role, "serials") ? `/serial-numbers/${u.id}` : "#"}
-                        className="text-sm font-medium text-slate-800 hover:text-brand-600"
-                      >
-                        {u.serialNo}
-                      </Link>
+                      {canView(user.role, "serials") ? (
+                        <Link href={`/serial-numbers/${u.id}`} className="text-sm font-medium text-slate-800 hover:text-brand-600">
+                          {u.serialNo}
+                        </Link>
+                      ) : (
+                        <span className="text-sm font-medium text-slate-800">{u.serialNo}</span>
+                      )}
                       <p className="text-xs text-slate-400">{u.product.name}</p>
                     </div>
                     <div className="flex items-center gap-2">
