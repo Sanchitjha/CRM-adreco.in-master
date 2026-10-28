@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useId, useRef } from "react";
+import { startTransition, useActionState, useEffect, useId, useRef, useSyncExternalStore } from "react";
 import { CircleCheck, TriangleAlert } from "lucide-react";
 import { INITIAL_ACTION_STATE, type ActionState } from "@/lib/action-state";
 
@@ -68,8 +68,24 @@ export function AutoForm({
     if (resetOnSuccess && state.message && !state.error) formRef.current?.reset();
   }, [state, resetOnSuccess]);
 
+  // Submitting through the action prop makes React clear every field once the action returns, even when the
+  // server rejected the input. Dispatching by hand keeps what the person typed so they can correct it.
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const data = new FormData(event.currentTarget);
+    startTransition(() => formAction(data));
+  }
+
+  // Until the page has hydrated there is no handler yet, so hold the submit button back rather than let the
+  // browser post the form natively.
+  const hydrated = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   return (
-    <form ref={formRef} action={formAction} className={compact ? "space-y-3" : "space-y-5"}>
+    <form ref={formRef} method="post" onSubmit={handleSubmit} className={compact ? "space-y-3" : "space-y-5"}>
       {fields
         .filter((f): f is Extract<FieldDef, { kind: "hidden" }> => f.kind === "hidden")
         .map((f) => (
@@ -100,7 +116,7 @@ export function AutoForm({
       )}
 
       <div className="flex items-center gap-3">
-        <button type="submit" disabled={pending} className="btn btn-primary">
+        <button type="submit" disabled={pending || !hydrated} className="btn btn-primary">
           {pending ? (pendingLabel ?? "Saving…") : submitLabel}
         </button>
       </div>
