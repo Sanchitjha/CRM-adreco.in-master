@@ -1,15 +1,17 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, FileText, ExternalLink, ClipboardCheck } from "lucide-react";
+import { ArrowLeft, FileText, ExternalLink, ClipboardCheck, ShoppingCart } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { canAccessQuotations } from "@/lib/rbac";
+import { canAccessQuotations, canManage, canView } from "@/lib/rbac";
 import { formatINR } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
 import { SectionCard, Avatar } from "@/components/ui";
 import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { QuoteStatusControl } from "@/components/quotations/quote-status-control";
 import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
+import { ActionButton } from "@/components/action-forms";
+import { convertQuotationToOrder } from "../../sales-orders/actions";
 
 function SummaryLine({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
   return (
@@ -28,7 +30,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
 
   const quote = await prisma.quotation.findUnique({
     where: { id },
-    include: { lead: true, createdBy: true, siteSurvey: true, items: true },
+    include: { lead: true, createdBy: true, siteSurvey: true, items: true, salesOrder: true },
   });
   if (!quote) notFound();
 
@@ -163,6 +165,29 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
           {canEdit && (
             <SectionCard title="Status" description="Update as the quote progresses" icon={FileText}>
               <QuoteStatusControl quoteId={quote.id} currentStatus={quote.status} />
+            </SectionCard>
+          )}
+
+          {(quote.salesOrder || (canManage(role, "salesOrders") && quote.status === "ACCEPTED")) && (
+            <SectionCard title="Sales order" description="Confirm the order once the customer accepts" icon={ShoppingCart}>
+              {quote.salesOrder ? (
+                canView(role, "salesOrders") ? (
+                  <Link href={`/sales-orders/${quote.salesOrder.id}`} className="btn btn-secondary w-full">
+                    Open {quote.salesOrder.orderNumber}
+                  </Link>
+                ) : (
+                  <p className="text-sm text-slate-700">Converted to order {quote.salesOrder.orderNumber}.</p>
+                )
+              ) : (
+                <ActionButton
+                  action={convertQuotationToOrder}
+                  hidden={{ quotationId: quote.id }}
+                  label="Convert to sales order"
+                  pendingLabel="Converting…"
+                  variant="primary"
+                  small={false}
+                />
+              )}
             </SectionCard>
           )}
         </div>
