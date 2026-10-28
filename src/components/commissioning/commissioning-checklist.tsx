@@ -30,6 +30,7 @@ function Row({
         <input type="hidden" name="itemId" value={item.id} />
         <span className="text-sm text-slate-700">{item.label}</span>
         <select
+          key={item.result}
           name="result"
           defaultValue={item.result}
           disabled={!editable}
