@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { endOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
 import { sendMail } from "@/lib/mailer";
+import { formatDate, today } from "@/lib/dates";
+import { RENEWAL_REMINDER_DAYS, addDaysUtc, daysBetween } from "@/lib/lifecycle";
 
 export async function POST(request: Request) {
   const secret = request.headers.get("x-cron-secret");
@@ -10,7 +12,31 @@ export async function POST(request: Request) {
   }
 
   const todayEnd = endOfDay(new Date());
+  const now = new Date();
+  const todayDate = today();
   const users = await prisma.user.findMany({ where: { active: true } });
+
+  // AMC contracts reach a reminder window on exactly 60, 30 and 7 days before they end, so each one is
+  // mentioned three times rather than every morning.
+  const renewalsDue = await prisma.amcContract.findMany({
+    where: {
+      status: "ACTIVE",
+      endDate: { in: RENEWAL_REMINDER_DAYS.map((d) => addDaysUtc(todayDate, d)) },
+      renewals: { none: {} },
+    },
+    include: { lead: { select: { customerName: true, assignedToId: true } } },
+    orderBy: { endDate: "asc" },
+  });
+  const breachedTickets = await prisma.serviceTicket.findMany({
+    where: { status: { not: "CLOSED" }, slaDueAt: { lt: now } },
+    include: { lead: { select: { customerName: true } } },
+    orderBy: { slaDueAt: "asc" },
+  });
+  const overdueVisits = await prisma.amcVisit.findMany({
+    where: { status: "SCHEDULED", scheduledFor: { lte: todayDate }, amc: { status: "ACTIVE" } },
+    include: { amc: { select: { contractNumber: true, lead: { select: { customerName: true } } } } },
+    orderBy: { scheduledFor: "asc" },
+  });
 
   let sent = 0;
 
@@ -52,6 +78,33 @@ export async function POST(request: Request) {
     if (tasks.length > 0) {
       lines.push(`Tasks due or overdue (${tasks.length}):`);
       for (const task of tasks) lines.push(`- ${task.title}`);
+    }
+
+    // Lifecycle: renewals go to the people who sell and service contracts; SLA breaches to the service team
+    // (and whoever is assigned); overdue maintenance visits to the service team.
+    const seesAllService = user.role === "ADMIN" || user.role === "SERVICE";
+
+    const myRenewals = renewalsDue.filter((c) =>
+      seesAllService ? true : user.role === "SALES" ? c.lead.assignedToId === user.id : false,
+    );
+    if (myRenewals.length > 0) {
+      lines.push(`AMC renewals coming up (${myRenewals.length}):`);
+      for (const c of myRenewals) {
+        lines.push(`- ${c.contractNumber} · ${c.lead.customerName} ends ${formatDate(c.endDate)} (${daysBetween(todayDate, c.endDate)} days)`);
+      }
+    }
+
+    const myBreaches = breachedTickets.filter((t) => seesAllService || t.assignedToId === user.id);
+    if (myBreaches.length > 0) {
+      lines.push(`Service tickets past their SLA (${myBreaches.length}):`);
+      for (const t of myBreaches) lines.push(`- ${t.ticketNumber} · ${t.lead.customerName} — ${t.subject}`);
+    }
+
+    if (seesAllService && overdueVisits.length > 0) {
+      lines.push(`Maintenance visits due or overdue (${overdueVisits.length}):`);
+      for (const v of overdueVisits) {
+        lines.push(`- ${v.amc.contractNumber} · ${v.amc.lead.customerName} (${formatDate(v.scheduledFor)})`);
+      }
     }
 
     if (lines.length === 0) continue;
