@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Role } from "@prisma/client";
 import { ArrowLeft, History } from "lucide-react";
 import { prisma } from "@/lib/db";
 import { formatDateTime } from "@/lib/dates";
@@ -11,6 +12,19 @@ export function BackLink({ href, label }: { href: string; label: string }) {
     <Link href={href} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
       <ArrowLeft className="size-4" />
       {label}
+    </Link>
+  );
+}
+
+/**
+ * Lead pages are only open to admins and the owning sales rep, so other roles see the customer's name as plain
+ * text rather than a link that would lead to a "not found" page.
+ */
+export function CustomerLink({ role, leadId, name }: { role: Role; leadId: string; name: string }) {
+  if (role !== "ADMIN" && role !== "SALES") return <span>{name}</span>;
+  return (
+    <Link href={`/leads/${leadId}`} className="font-medium text-slate-800 hover:text-brand-600">
+      {name}
     </Link>
   );
 }
