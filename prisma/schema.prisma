@@ -75,17 +75,17 @@ model User {
 
   department Department? @relation(fields: [departmentId], references: [id])
 
-  leadsCreated       Lead[]                  @relation("LeadCreatedBy")
-  leadsAssigned      Lead[]                  @relation("LeadAssignedTo")
-  followUps          FollowUp[]
-  departmentStages   LeadDepartmentHistory[] @relation("StageAssignedTo")
-  documentsUploaded  Document[]
-  tasksAssigned      Task[]                  @relation("TaskAssignedTo")
-  tasksCreated       Task[]                  @relation("TaskAssignedBy")
-  activityLogs       ActivityLog[]
-  notifications      Notification[]
-  siteSurveys        SiteSurvey[]            @relation("SurveyBy")
-  quotations         Quotation[]             @relation("QuoteBy")
+  leadsCreated      Lead[]                  @relation("LeadCreatedBy")
+  leadsAssigned     Lead[]                  @relation("LeadAssignedTo")
+  followUps         FollowUp[]
+  departmentStages  LeadDepartmentHistory[] @relation("StageAssignedTo")
+  documentsUploaded Document[]
+  tasksAssigned     Task[]                  @relation("TaskAssignedTo")
+  tasksCreated      Task[]                  @relation("TaskAssignedBy")
+  activityLogs      ActivityLog[]
+  notifications     Notification[]
+  siteSurveys       SiteSurvey[]            @relation("SurveyBy")
+  quotations        Quotation[]             @relation("QuoteBy")
 
   salesOrders           SalesOrder[]    @relation("OrderBy")
   installationsCreated  Installation[]  @relation("InstallBy")
@@ -160,11 +160,11 @@ model Lead {
 }
 
 model SiteSurvey {
-  id           String     @id @default(cuid())
+  id           String @id @default(cuid())
   leadId       String
-  lead         Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  lead         Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
   surveyedById String
-  surveyedBy   User       @relation("SurveyBy", fields: [surveyedById], references: [id])
+  surveyedBy   User   @relation("SurveyBy", fields: [surveyedById], references: [id])
 
   // Requirement
   application      String
@@ -334,4 +334,501 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+/**
+ * ============================================================================
+ * Customer lifecycle: catalog → order → install → commission → service
+ * ==========================================================================
+ */
+
+enum SalesOrderStatus {
+  CONFIRMED
+  IN_PRODUCTION
+  DISPATCHED
+  DELIVERED
+  CANCELLED
+}
+
+enum InstallationStatus {
+  PENDING
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum CommissioningStatus {
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum SerialStatus {
+  IN_STOCK
+  DISPATCHED
+  INSTALLED
+  COMMISSIONED
+  SCRAPPED
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum TicketStatus {
+  OPEN
+  ASSIGNED
+  VISIT
+  DIAGNOSIS
+  PARTS
+  REPAIR
+  CLOSED
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  RESOLVED
+}
+
+enum AmcStatus {
+  ACTIVE
+  CANCELLED
+}
+
+enum AmcVisitStatus {
+  SCHEDULED
+  COMPLETED
+  SKIPPED
+}
+
+model Product {
+  id          String  @id @default(cuid())
+  name        String
+  modelCode   String  @unique
+  category    String?
+  series      String?
+  description String?
+  isSparePart Boolean @default(false)
+
+  heatingCapacityKw Decimal? @db.Decimal(8, 2)
+  inputPowerKw      Decimal? @db.Decimal(8, 2)
+  cop               Decimal? @db.Decimal(5, 2)
+  refrigerant       String?
+  compressor        String?
+  operatingRange    String?
+  heatExchanger     String?
+  warrantyMonths    Int      @default(12)
+
+  dealerPrice   Decimal? @db.Decimal(12, 2)
+  customerPrice Decimal? @db.Decimal(12, 2)
+  stockQty      Int      @default(0)
+  datasheetUrl  String?
+
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  serialNumbers SerialNumber[]
+  ticketParts   TicketPart[]
+  dealerStock   DealerStock[]
+
+  @@index([category])
+  @@index([series])
+  @@index([active])
+}
+
+model SalesOrder {
+  id          String     @id @default(cuid())
+  orderNumber String     @unique
+  leadId      String
+  lead        Lead       @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  quotationId String?    @unique
+  quotation   Quotation? @relation(fields: [quotationId], references: [id])
+  createdById String
+  createdBy   User       @relation("OrderBy", fields: [createdById], references: [id])
+
+  status           SalesOrderStatus @default(CONFIRMED)
+  orderDate        DateTime         @default(now())
+  deliveryDate     DateTime?
+  paymentTerms     String?
+  customerPoNumber String?
+  billingAddress   String?
+  shippingAddress  String?
+
+  // Commercial snapshot taken from the accepted quotation.
+  subtotal           Decimal @default(0) @db.Decimal(12, 2)
+  discountPct        Decimal @default(0) @db.Decimal(5, 2)
+  gstPct             Decimal @default(18) @db.Decimal(5, 2)
+  installationCharge Decimal @default(0) @db.Decimal(12, 2)
+  transportCharge    Decimal @default(0) @db.Decimal(12, 2)
+  grandTotal         Decimal @default(0) @db.Decimal(12, 2)
+  amountReceived     Decimal @default(0) @db.Decimal(12, 2)
+
+  // Dispatch
+  transporter  String?
+  lrNumber     String?
+  ewayBillNo   String?
+  dispatchedAt DateTime?
+  deliveredAt  DateTime?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  items         SalesOrderItem[]
+  serialNumbers SerialNumber[]
+  installations Installation[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([createdById])
+}
+
+model SalesOrderItem {
+  id          String     @id @default(cuid())
+  orderId     String
+  order       SalesOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  description String
+  quantity    Int        @default(1)
+  unitPrice   Decimal    @db.Decimal(12, 2)
+  lineTotal   Decimal    @db.Decimal(12, 2)
+
+  @@index([orderId])
+}
+
+model SerialNumber {
+  id             String       @id @default(cuid())
+  serialNo       String       @unique
+  productId      String
+  product        Product      @relation(fields: [productId], references: [id])
+  status         SerialStatus @default(IN_STOCK)
+  manufacturedOn DateTime?
+
+  // Current owner. Set when the unit is dispatched on an order (or registered as an existing installation).
+  leadId String?
+  lead   Lead?   @relation(fields: [leadId], references: [id])
+
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  dispatchedAt DateTime?
+
+  installationId String?
+  installation   Installation? @relation(fields: [installationId], references: [id])
+  installedAt    DateTime?
+
+  commissionedAt   DateTime?
+  warrantyStartsOn DateTime?
+  warrantyEndsOn   DateTime?
+
+  notes     String?
+  createdAt DateTime @default(now())
+
+  tickets  ServiceTicket[]
+  claims   WarrantyClaim[]
+  amcUnits AmcUnit[]
+
+  @@index([productId])
+  @@index([status])
+  @@index([leadId])
+  @@index([salesOrderId])
+  @@index([installationId])
+  @@index([warrantyEndsOn])
+}
+
+model Installation {
+  id           String      @id @default(cuid())
+  jobNumber    String      @unique
+  leadId       String
+  lead         Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  salesOrderId String?
+  salesOrder   SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  createdById  String
+  createdBy    User        @relation("InstallBy", fields: [createdById], references: [id])
+  technicianId String?
+  technician   User?       @relation("InstallTech", fields: [technicianId], references: [id])
+
+  status        InstallationStatus @default(PENDING)
+  siteAddress   String?
+  contactPerson String?
+  contactPhone  String?
+  scheduledFor  DateTime?
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  /// [{ id, label, done }]
+  checklist Json    @default("[]")
+  remarks   String?
+
+  customerSignedBy String?
+  customerSignedAt DateTime?
+  createdAt        DateTime  @default(now())
+
+  serialNumbers SerialNumber[]
+  commissioning Commissioning?
+
+  @@index([leadId])
+  @@index([status])
+  @@index([technicianId])
+  @@index([salesOrderId])
+}
+
+model Commissioning {
+  id             String       @id @default(cuid())
+  reportNumber   String       @unique
+  installationId String       @unique
+  installation   Installation @relation(fields: [installationId], references: [id], onDelete: Cascade)
+  engineerId     String?
+  engineer       User?        @relation("CommissionBy", fields: [engineerId], references: [id])
+
+  status CommissioningStatus @default(IN_PROGRESS)
+
+  /// [{ id, label, result: "PENDING" | "PASS" | "FAIL", reading }]
+  checklist Json @default("[]")
+
+  customerDemoDone   Boolean   @default(false)
+  customerApprovedBy String?
+  customerApprovedAt DateTime?
+  engineerRemarks    String?
+  commissionedOn     DateTime?
+  createdAt          DateTime  @default(now())
+
+  @@index([status])
+  @@index([engineerId])
+}
+
+model ServiceTicket {
+  id             String        @id @default(cuid())
+  ticketNumber   String        @unique
+  leadId         String
+  lead           Lead          @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  serialNumberId String?
+  serialNumber   SerialNumber? @relation(fields: [serialNumberId], references: [id])
+
+  subject       String
+  description   String?
+  complaintType String?
+  priority      TicketPriority @default(MEDIUM)
+  status        TicketStatus   @default(OPEN)
+  slaDueAt      DateTime?
+
+  createdById  String
+  createdBy    User    @relation("TicketBy", fields: [createdById], references: [id])
+  assignedToId String?
+  assignedTo   User?   @relation("TicketTech", fields: [assignedToId], references: [id])
+
+  visitScheduledFor   DateTime?
+  checkedInAt         DateTime?
+  diagnosis           String?
+  resolution          String?
+  customerSignedOffBy String?
+  closedAt            DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  parts  TicketPart[]
+  claims WarrantyClaim[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([priority])
+  @@index([assignedToId])
+  @@index([serialNumberId])
+}
+
+model TicketPart {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    ServiceTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product       @relation(fields: [productId], references: [id])
+  quantity  Int           @default(1)
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId])
+  @@index([productId])
+}
+
+model WarrantyClaim {
+  id             String         @id @default(cuid())
+  claimNumber    String         @unique
+  serialNumberId String
+  serialNumber   SerialNumber   @relation(fields: [serialNumberId], references: [id])
+  ticketId       String?
+  ticket         ServiceTicket? @relation(fields: [ticketId], references: [id])
+
+  issue        String
+  claimedParts String?
+  status       ClaimStatus @default(SUBMITTED)
+  decisionNote String?
+  resolution   String?
+
+  createdById String
+  createdBy   User      @relation("ClaimBy", fields: [createdById], references: [id])
+  decidedById String?
+  decidedBy   User?     @relation("ClaimDecidedBy", fields: [decidedById], references: [id])
+  decidedAt   DateTime?
+  resolvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([serialNumberId])
+  @@index([status])
+  @@index([ticketId])
+}
+
+model AmcContract {
+  id             String @id @default(cuid())
+  contractNumber String @unique
+  leadId         String
+  lead           Lead   @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdById    String
+  createdBy      User   @relation("AmcBy", fields: [createdById], references: [id])
+
+  status        AmcStatus @default(ACTIVE)
+  startDate     DateTime
+  endDate       DateTime
+  visitsPerYear Int       @default(2)
+  amount        Decimal   @default(0) @db.Decimal(12, 2)
+  coveredParts  String?
+  notes         String?
+
+  renewedFromId String?
+  renewedFrom   AmcContract?  @relation("AmcRenewal", fields: [renewedFromId], references: [id])
+  renewals      AmcContract[] @relation("AmcRenewal")
+
+  createdAt DateTime @default(now())
+
+  units  AmcUnit[]
+  visits AmcVisit[]
+
+  @@index([leadId])
+  @@index([status])
+  @@index([endDate])
+}
+
+model AmcUnit {
+  amcId          String
+  amc            AmcContract  @relation(fields: [amcId], references: [id], onDelete: Cascade)
+  serialNumberId String
+  serialNumber   SerialNumber @relation(fields: [serialNumberId], references: [id])
+
+  @@id([amcId, serialNumberId])
+  @@index([serialNumberId])
+}
+
+model AmcVisit {
+  id           String         @id @default(cuid())
+  amcId        String
+  amc          AmcContract    @relation(fields: [amcId], references: [id], onDelete: Cascade)
+  scheduledFor DateTime
+  status       AmcVisitStatus @default(SCHEDULED)
+  technicianId String?
+  technician   User?          @relation("AmcVisitTech", fields: [technicianId], references: [id])
+  completedAt  DateTime?
+  notes        String?
+
+  @@index([amcId])
+  @@index([status, scheduledFor])
+}
+
+model Dealer {
+  id                 String   @id @default(cuid())
+  code               String?  @unique
+  name               String
+  contactPerson      String?
+  phone              String?
+  email              String?
+  address            String?
+  city               String?
+  state              String?
+  territory          String?
+  gstin              String?
+  outstandingBalance Decimal  @default(0) @db.Decimal(12, 2)
+  notes              String?
+  active             Boolean  @default(true)
+  createdAt          DateTime @default(now())
+
+  leads   Lead[]
+  targets DealerTarget[]
+  stock   DealerStock[]
+
+  @@index([territory])
+  @@index([active])
+}
+
+model DealerTarget {
+  id           String   @id @default(cuid())
+  dealerId     String
+  dealer       Dealer   @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  periodLabel  String
+  startDate    DateTime
+  endDate      DateTime
+  targetAmount Decimal  @db.Decimal(14, 2)
+  incentivePct Decimal  @default(0) @db.Decimal(5, 2)
+  createdAt    DateTime @default(now())
+
+  @@index([dealerId])
+}
+
+model DealerStock {
+  id        String  @id @default(cuid())
+  dealerId  String
+  dealer    Dealer  @relation(fields: [dealerId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(0)
+
+  @@unique([dealerId, productId])
+  @@index([productId])
+}
+
+/**
+ * ----------------------------------------------------------------------------
+ * Settings & helpers
+ * --------------------------------------------------------------------------
+ */
+
+model CompanyProfile {
+  id          String   @id @default("singleton")
+  legalName   String
+  tradeName   String?
+  gstin       String?
+  pan         String?
+  address     String?
+  city        String?
+  state       String?
+  pincode     String?
+  phone       String?
+  email       String?
+  website     String?
+  logoUrl     String?
+  bankDetails String?
+  updatedAt   DateTime @updatedAt
+}
+
+/// Editable pick-lists: lead sources, payment terms, product categories, complaint types, territories, warranty periods.
+model SettingOption {
+  id        String  @id @default(cuid())
+  group     String
+  value     String
+  sortOrder Int     @default(0)
+  active    Boolean @default(true)
+
+  @@unique([group, value])
+  @@index([group])
+}
+
+model SlaPolicy {
+  priority        TicketPriority @id
+  resolutionHours Int
+}
+
+/// Gap-tolerant, race-free counters for human-readable document numbers (SO-2026-0001).
+model Sequence {
+  key   String @id
+  value Int    @default(0)
 }
