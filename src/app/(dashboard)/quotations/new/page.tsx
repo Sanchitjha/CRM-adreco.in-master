@@ -4,7 +4,8 @@ import type { Prisma } from "@prisma/client";
 import { ArrowLeft, FileText } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
-import { canAccessQuotations } from "@/lib/rbac";
+import { canAccessQuotations, canSeePricing } from "@/lib/rbac";
+import type { CatalogProduct } from "@/lib/quotation-lines";
 import { PageHeader, Card, EmptyState } from "@/components/ui";
 import { NewQuotationForm } from "@/components/quotations/new-quotation-form";
 
@@ -25,6 +26,20 @@ export default async function NewQuotationPage({
     select: { id: true, customerName: true },
     orderBy: { createdAt: "desc" },
   });
+
+  // Active catalog products the quote can be built from. Prices are commercial, so only roles that may see them
+  // get the list; Decimals are turned into plain numbers because this goes to a client component.
+  const catalogRows = canSeePricing(role)
+    ? await prisma.product.findMany({
+        where: { active: true },
+        orderBy: [{ isSparePart: "asc" }, { series: "asc" }, { heatingCapacityKw: "asc" }, { name: "asc" }],
+        select: { id: true, name: true, modelCode: true, isSparePart: true, customerPrice: true },
+      })
+    : [];
+  const products: CatalogProduct[] = catalogRows.map((p) => ({
+    ...p,
+    customerPrice: p.customerPrice === null ? null : Number(p.customerPrice),
+  }));
 
   const lockedLeadId = leadId && leads.some((l) => l.id === leadId) ? leadId : undefined;
 
@@ -64,7 +79,12 @@ export default async function NewQuotationPage({
             }
           />
         ) : (
-          <NewQuotationForm leads={leads} lockedLeadId={lockedLeadId} lockedSurveyId={lockedSurveyId} />
+          <NewQuotationForm
+            leads={leads}
+            products={products}
+            lockedLeadId={lockedLeadId}
+            lockedSurveyId={lockedSurveyId}
+          />
         )}
       </Card>
     </div>
