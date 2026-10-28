@@ -16,11 +16,17 @@ import {
   FileText,
   Plus,
   ChevronRight,
+  Handshake,
+  ShoppingCart,
 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { formatINR } from "@/lib/utils";
-import { canAccessDepartment, canAccessSurveys, canAccessQuotations } from "@/lib/rbac";
+import { formatDate, today } from "@/lib/dates";
+import { amcState } from "@/lib/lifecycle";
+import { AMC_STATE, INSTALLATION_STATUS, ORDER_STATUS, TICKET_STATUS, type StatusMeta } from "@/lib/statuses";
+import { canAccessDepartment, canAccessSurveys, canAccessQuotations, canView } from "@/lib/rbac";
+import { StatusPill } from "@/components/page-kit";
 import { StatusBadge } from "@/components/status-badge";
 import { StatusControl } from "@/components/leads/status-control";
 import { AssignControl } from "@/components/leads/assign-control";
@@ -58,6 +64,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       documents: { orderBy: { createdAt: "asc" }, include: { uploadedBy: true } },
       siteSurveys: { orderBy: { surveyDate: "desc" }, include: { surveyedBy: true } },
       quotations: { orderBy: { createdAt: "desc" }, include: { createdBy: true } },
+      dealer: true,
+      salesOrders: { orderBy: { createdAt: "desc" } },
+      installations: { orderBy: { createdAt: "desc" } },
+      tickets: { orderBy: { createdAt: "desc" } },
+      amcContracts: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -92,7 +103,62 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
     { icon: Package, label: "Product category", value: lead.productCategory ?? "—" },
     { icon: IndianRupee, label: "Budget", value: formatBudget(lead.budget) },
     { icon: Radio, label: "Source", value: lead.source ?? "—" },
+    {
+      icon: Handshake,
+      label: "Dealer",
+      value: lead.dealer ? (
+        canView(session!.user.role, "dealers") ? (
+          <Link href={`/dealers/${lead.dealer.id}`} className="hover:text-brand-600">
+            {lead.dealer.name}
+          </Link>
+        ) : (
+          lead.dealer.name
+        )
+      ) : (
+        "Direct enquiry"
+      ),
+    },
     { icon: MapPin, label: "Address", value: lead.address ?? "—" },
+  ];
+
+  const role = session!.user.role;
+  const lifecycleLinks: { key: string; href: string; title: string; subtitle: string; status: StatusMeta }[] = [
+    ...(canView(role, "salesOrders")
+      ? lead.salesOrders.map((o) => ({
+          key: o.id,
+          href: `/sales-orders/${o.id}`,
+          title: `Order ${o.orderNumber}`,
+          subtitle: `${formatINR(Number(o.grandTotal))} · ${o.createdAt.toLocaleDateString("en-IN")}`,
+          status: ORDER_STATUS[o.status],
+        }))
+      : []),
+    ...(canView(role, "installations")
+      ? lead.installations.map((j) => ({
+          key: j.id,
+          href: `/installations/${j.id}`,
+          title: `Installation ${j.jobNumber}`,
+          subtitle: j.siteAddress ?? "Site not recorded",
+          status: INSTALLATION_STATUS[j.status],
+        }))
+      : []),
+    ...(canView(role, "tickets")
+      ? lead.tickets.map((t) => ({
+          key: t.id,
+          href: `/tickets/${t.id}`,
+          title: `Ticket ${t.ticketNumber}`,
+          subtitle: t.subject,
+          status: TICKET_STATUS[t.status],
+        }))
+      : []),
+    ...(canView(role, "amc")
+      ? lead.amcContracts.map((c) => ({
+          key: c.id,
+          href: `/amc/${c.id}`,
+          title: `AMC ${c.contractNumber}`,
+          subtitle: `Ends ${formatDate(c.endDate)}`,
+          status: AMC_STATE[amcState(c, today())],
+        }))
+      : []),
   ];
 
   const lastFollowUp = lead.followUps[0];
@@ -296,6 +362,35 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                   ))}
                 </ul>
               )}
+            </SectionCard>
+          )}
+
+          {lifecycleLinks.length > 0 && (
+            <SectionCard
+              title="Orders and service"
+              description="Everything delivered to this customer after the sale"
+              icon={ShoppingCart}
+              bodyClassName="p-0"
+            >
+              <ul className="divide-y divide-[var(--border)]">
+                {lifecycleLinks.map((l) => (
+                  <li key={l.key}>
+                    <Link
+                      href={l.href}
+                      className="flex items-center justify-between gap-3 px-5 py-3 transition hover:bg-slate-50/70"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-slate-800">{l.title}</p>
+                        <p className="truncate text-xs text-slate-400">{l.subtitle}</p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <StatusPill meta={l.status} />
+                        <ChevronRight className="size-4 text-slate-300" />
+                      </div>
+                    </Link>
+                  </li>
+                ))}
+              </ul>
             </SectionCard>
           )}
 
