@@ -40,8 +40,16 @@ export async function createLead(_prevState: ActionState, formData: FormData): P
 
   const assignedToId = session.user.role === "SALES" ? session.user.id : data.assignedToId || null;
 
+  let dealerId: string | null = null;
+  if (data.dealerId) {
+    const dealer = await prisma.dealer.findUnique({ where: { id: data.dealerId }, select: { id: true, active: true } });
+    if (!dealer || !dealer.active) return { error: "Choose an active dealer." };
+    dealerId = dealer.id;
+  }
+
   const lead = await prisma.lead.create({
     data: {
+      dealerId,
       customerName: data.customerName,
       phone: data.phone,
       email: data.email || null,
