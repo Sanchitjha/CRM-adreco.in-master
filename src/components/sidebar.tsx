@@ -41,11 +41,6 @@ export function SidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () =
                   >
                     <Icon className="size-[18px]" strokeWidth={2} />
                     <span className="flex-1 truncate">{item.label}</span>
-                    {item.planned && (
-                      <span className="rounded-full bg-white/8 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-brand-300/80">
-                        Soon
-                      </span>
-                    )}
                   </Link>
                 );
               })}
