@@ -20,6 +20,7 @@ export const createLeadSchema = z.object({
   budget: z.union([z.coerce.number().positive(), z.literal("")]).optional(),
   source: z.string().trim().optional(),
   assignedToId: z.string().trim().optional(),
+  dealerId: z.string().trim().optional(),
 });
 
 export const addFollowUpSchema = z.object({
