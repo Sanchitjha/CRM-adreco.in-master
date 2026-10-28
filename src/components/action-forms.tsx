@@ -33,7 +33,8 @@ export function SelectActionForm({
         <input key={k} type="hidden" name={k} value={v} />
       ))}
       <div className="flex flex-wrap items-center gap-2">
-        <select name={name} defaultValue={current ?? ""} className="select w-auto min-w-36 py-1.5 text-sm">
+        {/* Keyed by the saved value so the dropdown follows the record after an update. */}
+        <select key={current ?? ""} name={name} defaultValue={current ?? ""} className="select w-auto min-w-36 py-1.5 text-sm">
           {placeholder !== undefined && <option value="">{placeholder}</option>}
           {options.map((o) => (
             <option key={o.value} value={o.value}>
