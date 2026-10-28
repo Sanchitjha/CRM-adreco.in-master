@@ -116,7 +116,7 @@ export function LeadKanban({
 
   return (
     <div className="space-y-4">
-      {/* Odoo-style Pipeline Summary Bar */}
+      {/* Pipeline Summary Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-slate-200/80 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 p-4 text-white shadow-md">
         <div className="flex items-center gap-4">
           <div className="rounded-lg bg-brand-500/20 p-2.5 ring-1 ring-brand-400/30">
@@ -128,7 +128,7 @@ export function LeadKanban({
                 Active Pipeline Value
               </span>
               <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
-                Live Odoo View
+                Live view
               </span>
             </div>
             <p className="text-2xl font-bold tracking-tight text-white">
