@@ -4,11 +4,21 @@ import { useActionState } from "react";
 import { TriangleAlert } from "lucide-react";
 import { createLead } from "@/app/(dashboard)/leads/actions";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
-import { PRODUCT_CATEGORIES } from "@/lib/validation/lead";
 
 type SalesUser = { id: string; name: string };
+type DealerOption = { id: string; name: string };
 
-export function NewLeadForm({ salesUsers }: { salesUsers: SalesUser[] | null }) {
+export function NewLeadForm({
+  salesUsers,
+  categories,
+  sources,
+  dealers,
+}: {
+  salesUsers: SalesUser[] | null;
+  categories: string[];
+  sources: string[];
+  dealers: DealerOption[];
+}) {
   const [state, formAction, pending] = useActionState(createLead, INITIAL_ACTION_STATE);
 
   return (
@@ -20,7 +30,23 @@ export function NewLeadForm({ salesUsers }: { salesUsers: SalesUser[] | null }) 
 
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Email" name="email" type="email" />
-        <Field label="Source" name="source" placeholder="e.g. Website enquiry, referral" />
+        <div>
+          <label htmlFor="source" className="label">
+            Source
+          </label>
+          <input
+            id="source"
+            name="source"
+            list="lead-sources"
+            placeholder="e.g. Website enquiry, referral"
+            className="input"
+          />
+          <datalist id="lead-sources">
+            {sources.map((s) => (
+              <option key={s} value={s} />
+            ))}
+          </datalist>
+        </div>
       </div>
 
       <Field label="Address" name="address" placeholder="Site / billing address" />
@@ -32,7 +58,7 @@ export function NewLeadForm({ salesUsers }: { salesUsers: SalesUser[] | null }) 
           </label>
           <select id="productCategory" name="productCategory" className="select" defaultValue="">
             <option value="">Select…</option>
-            {PRODUCT_CATEGORIES.map((c) => (
+            {categories.map((c) => (
               <option key={c} value={c}>
                 {c}
               </option>
@@ -41,6 +67,23 @@ export function NewLeadForm({ salesUsers }: { salesUsers: SalesUser[] | null }) 
         </div>
         <Field label="Budget (₹)" name="budget" type="number" placeholder="Estimated value" />
       </div>
+
+      {dealers.length > 0 && (
+        <div>
+          <label className="label" htmlFor="dealerId">
+            Dealer
+          </label>
+          <select id="dealerId" name="dealerId" className="select" defaultValue="">
+            <option value="">Direct enquiry — no dealer</option>
+            {dealers.map((d) => (
+              <option key={d.id} value={d.id}>
+                {d.name}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1 text-xs text-slate-400">Choose the dealer if this lead came through a channel partner.</p>
+        </div>
+      )}
 
       {salesUsers && (
         <div>
