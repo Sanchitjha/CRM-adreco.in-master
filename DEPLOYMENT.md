@@ -57,6 +57,8 @@ You can do all of these before anything is built.
    - `VpcId`: the default VPC. `SubnetIds`: pick two or more in different zones (the default VPC's are public, as needed).
    - `DesiredCount`: leave at **0** for now.
    - `DbMultiAz`: `true` for production (a standby database, about US$13 more a month), `false` while testing.
+   - `DbEngineVersion`: leave the default (PostgreSQL 16) unless CloudFormation says it is unavailable in your region;
+     then pick another 16.x from the RDS *Create database* page.
    - `AlarmEmail`: who is told when the CRM turns unhealthy or the database runs low on space.
    - `CreateGitHubOidcProvider`: `true`, unless this AWS account already has a GitHub identity provider.
 3. Tick *I acknowledge that CloudFormation might create IAM resources*, and create. It takes 15–25 minutes, mostly

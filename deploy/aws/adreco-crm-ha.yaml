@@ -16,7 +16,7 @@ Metadata:
       - Label: { default: Application }
         Parameters: [DesiredCount, TaskSize, ImageTag, EnvFileKey]
       - Label: { default: Database }
-        Parameters: [DbInstanceClass, DbMultiAz, DbAllocatedStorage]
+        Parameters: [DbEngineVersion, DbInstanceClass, DbMultiAz, DbAllocatedStorage]
       - Label: { default: Alerts and deployments }
         Parameters: [AlarmEmail, GitHubRepo, CreateGitHubOidcProvider]
 
@@ -62,6 +62,11 @@ Parameters:
     Description: >-
       Optional. Path inside the documents bucket of a .env file holding your email, AI, WhatsApp and Zoho settings.
       It must start with config/, for example config/app.env. Leave empty at first.
+  DbEngineVersion:
+    Type: String
+    Default: "16.12"
+    AllowedPattern: ^16\.[0-9]+$
+    Description: PostgreSQL 16 version for the database. Leave as is unless CloudFormation says it is unavailable in your region; then choose another 16.x offered on the RDS Create database page.
   DbInstanceClass:
     Type: String
     Default: db.t4g.micro
@@ -176,14 +181,15 @@ Resources:
     UpdateReplacePolicy: Snapshot
     Properties:
       Engine: postgres
-      EngineVersion: "16"
+      EngineVersion: !Ref DbEngineVersion
       DBInstanceClass: !Ref DbInstanceClass
       AllocatedStorage: !Ref DbAllocatedStorage
       StorageType: gp3
       StorageEncrypted: true
       DBName: adreco_crm
       MasterUsername: !Sub "{{resolve:secretsmanager:${DatabaseSecret}:SecretString:username}}"
-      MasterUserPassword: !Sub "{{resolve:secretsmanager:${DatabaseSecret}:SecretString:password}}"
+      MasterUserPassword: !Sub >-
+        {{resolve:secretsmanager:${DatabaseSecret}:SecretString:password}}
       MultiAZ: !Ref DbMultiAz
       PubliclyAccessible: false
       DBSubnetGroupName: !Ref DatabaseSubnetGroup
