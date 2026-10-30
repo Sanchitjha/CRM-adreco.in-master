@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Typecheck, lint, test, build
+    runs-on: ubuntu-latest
+    env:
+      # Placeholders so the build can run; nothing here connects to a real database.
+      DATABASE_URL: postgresql://adreco:ci@localhost:5432/adreco_crm
+      AUTH_SECRET: ci-only-secret-not-used-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx prisma validate
+      - run: npx tsc --noEmit
+      - run: npm run lint
+      - run: npm test
+      - run: npm run build
+
+  docker:
+    name: Docker image and smoke test
+    runs-on: ubuntu-latest
+    needs: checks
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: adreco
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: adreco_crm
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U adreco"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://adreco:ci@localhost:5432/adreco_crm
+      AUTH_SECRET: ci-only-secret-not-used-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the runtime and migrator images
+        run: |
+          docker build -t adreco-crm .
+          docker build --target migrator -t adreco-crm-migrator .
+
+      - name: Apply migrations and seed the production administrator
+        run: |
+          docker run --rm --network host -e DATABASE_URL -e SEED_MODE=production \
+            -e SEED_ADMIN_PASSWORD=ci-admin-Passw0rd-1234 adreco-crm-migrator \
+            sh -c "npx prisma migrate deploy && npm run db:seed"
+
+      - name: Start the app container
+        run: |
+          docker run -d --name crm --network host -e DATABASE_URL -e AUTH_SECRET adreco-crm
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/api/health && exit 0
+            sleep 2
+          done
+          docker logs crm
+          exit 1
+
+      - name: Smoke test
+        run: |
+          set -e
+          test "$(curl -fsS http://127.0.0.1:3000/api/health)" = '{"status":"ok"}'
+          curl -fsS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:3000/login | grep -qx 200
+          # Anonymous visitors are sent to the login screen.
+          curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' http://127.0.0.1:3000/leads | grep -q '^307 .*/login'
+          curl -sSI http://127.0.0.1:3000/login | grep -qi '^x-frame-options: DENY'
+          test "$(docker exec crm printenv TZ)" = 'Asia/Kolkata'
+          docker inspect --format '{{.State.Health.Status}}' crm
+          docker logs crm

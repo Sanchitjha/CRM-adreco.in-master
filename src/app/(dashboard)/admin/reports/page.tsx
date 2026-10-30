@@ -7,7 +7,7 @@ import { PageHeader, StatCard, SectionCard, EmptyState } from "@/components/ui";
 
 export default async function AdminReportsPage() {
   const session = await auth();
-  if (session?.user.role !== "ADMIN") redirect("/");
+  if (!session?.user || session.user.role !== "ADMIN") redirect("/");
 
   const [totalLeads, statusCounts, salesReps, completedStages, activity] = await Promise.all([
     prisma.lead.count(),

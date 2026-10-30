@@ -4,6 +4,7 @@ import { useState, type FormEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn } from "next-auth/react";
 import { Mail, Lock, TriangleAlert, Loader2 } from "lucide-react";
+import { safeCallbackPath } from "@/lib/safe-redirect";
 
 export function LoginForm() {
   const router = useRouter();
@@ -26,12 +27,16 @@ export function LoginForm() {
 
     setLoading(false);
 
+    if (result?.code === "too_many_attempts") {
+      setError("Too many failed attempts. Please wait 15 minutes and try again, or ask your administrator to help.");
+      return;
+    }
     if (!result || result.error) {
       setError("Invalid email or password.");
       return;
     }
 
-    router.push(searchParams.get("callbackUrl") ?? "/");
+    router.push(safeCallbackPath(searchParams.get("callbackUrl")));
     router.refresh();
   }
 

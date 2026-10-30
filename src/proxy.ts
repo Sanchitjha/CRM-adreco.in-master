@@ -8,6 +8,9 @@ const PUBLIC_PATHS = [
   "/api/integrations/zoho/webhook",
 ];
 
+/** Where someone with a temporary password is kept until they have chosen their own. */
+const CHANGE_PASSWORD_PATH = "/change-password";
+
 export default auth((req) => {
   const { pathname } = req.nextUrl;
   const isLoggedIn = !!req.auth;
@@ -24,6 +27,10 @@ export default auth((req) => {
 
   if (isLoggedIn && pathname === "/login") {
     return NextResponse.redirect(new URL("/", req.nextUrl.origin));
+  }
+
+  if (isLoggedIn && req.auth?.user.mustChangePassword && !isPublic && pathname !== CHANGE_PASSWORD_PATH) {
+    return NextResponse.redirect(new URL(CHANGE_PASSWORD_PATH, req.nextUrl.origin));
   }
 });
 

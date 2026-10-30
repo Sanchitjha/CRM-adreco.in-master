@@ -6,7 +6,7 @@ import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { signOut } from "next-auth/react";
 import { formatDistanceToNow } from "date-fns";
-import { Menu, Search, Bell, LogOut, ChevronDown, X, Inbox } from "lucide-react";
+import { Menu, Search, Bell, LogOut, ChevronDown, X, Inbox, KeyRound } from "lucide-react";
 import { SidebarNav } from "@/components/sidebar";
 import { Avatar } from "@/components/ui";
 import { cn, initials } from "@/lib/utils";
@@ -39,7 +39,7 @@ function GlobalSearch() {
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        router.push(q.trim() ? `/leads?q=${encodeURIComponent(q.trim())}` : "/leads");
+        router.push(q.trim() ? `/search?q=${encodeURIComponent(q.trim())}` : "/search");
       }}
       className="relative hidden w-full max-w-md sm:block"
     >
@@ -48,8 +48,8 @@ function GlobalSearch() {
         value={q}
         onChange={(e) => setQ(e.target.value)}
         type="search"
-        placeholder="Search leads by name, phone or email…"
-        aria-label="Search leads"
+        placeholder="Search customers, quotes, orders, serial numbers…"
+        aria-label="Search"
         className="h-9 w-full rounded-lg border border-[var(--border)] bg-slate-50 pl-9 pr-3 text-sm text-slate-700 transition placeholder:text-slate-400 focus:border-brand-500 focus:bg-white focus:outline-none focus:ring-3 focus:ring-[var(--ring)]"
       />
     </form>
@@ -161,6 +161,14 @@ function UserMenu({ userName, roleLabel }: { userName: string; roleLabel: string
               <p className="text-xs text-slate-400">{roleLabel}</p>
             </div>
           </div>
+          <Link
+            href="/change-password"
+            onClick={() => setOpen(false)}
+            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
+          >
+            <KeyRound className="size-4" />
+            Change password
+          </Link>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: "/login" })}
@@ -179,7 +187,6 @@ export function AppShell({
   role,
   userName,
   roleLabel,
-  canSearch,
   notifications,
   unreadCount,
   children,
@@ -187,7 +194,6 @@ export function AppShell({
   role: Role;
   userName: string;
   roleLabel: string;
-  canSearch: boolean;
   notifications: NotificationItem[];
   unreadCount: number;
   children: React.ReactNode;
@@ -234,9 +240,16 @@ export function AppShell({
             <Menu className="size-5" />
           </button>
 
-          {canSearch ? <GlobalSearch /> : <div className="flex-1" />}
+          <GlobalSearch />
 
           <div className="ml-auto flex items-center gap-1">
+            <Link
+              href="/search"
+              aria-label="Search"
+              className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 sm:hidden"
+            >
+              <Search className="size-5" />
+            </Link>
             <NotificationsMenu notifications={notifications} unreadCount={unreadCount} />
             <div className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />
             <UserMenu userName={userName} roleLabel={roleLabel} />

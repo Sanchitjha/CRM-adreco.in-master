@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { endOfDay } from "date-fns";
 import {
   Contact,
   Waypoints,
@@ -18,12 +17,13 @@ import { ROLE_LABELS, ROLE_TO_DEPARTMENT_NAME } from "@/lib/rbac";
 import { STATUS_LABELS } from "@/components/status-badge";
 import { StatCard, SectionCard, EmptyState, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
+import { endOfTodayIst, istHour } from "@/lib/dates";
 import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 import { LifecycleStatsRow } from "@/components/lifecycle-stats-row";
 import { lifecycleStats } from "@/lib/lifecycle-stats";
 
 function greeting(): string {
-  const h = new Date().getHours();
+  const h = istHour();
   if (h < 12) return "Good morning";
   if (h < 17) return "Good afternoon";
   return "Good evening";
@@ -37,8 +37,8 @@ export default async function DashboardHome() {
   const session = await auth();
   const { role, id: userId } = session!.user;
   const firstName = session!.user.name?.split(" ")[0] ?? "there";
-  const todayEnd = endOfDay(new Date());
   const now = new Date();
+  const todayEnd = endOfTodayIst(now);
 
   const [stats, myTasks, myOpenTasks] = await Promise.all([
     lifecycleStats(role, userId),
@@ -56,7 +56,7 @@ export default async function DashboardHome() {
       <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{firstName}</h1>
       <p className="mt-1 text-sm text-slate-500">
         {ROLE_LABELS[role]} ·{" "}
-        {now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
+        {now.toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", timeZone: "Asia/Kolkata" })}
       </p>
     </div>
   );

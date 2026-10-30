@@ -7,13 +7,14 @@ import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
 import { ROLE_TO_DEPARTMENT_NAME } from "@/lib/rbac";
 import { createUserSchema, ROLE_VALUES } from "@/lib/validation/user";
+import { passwordSchema } from "@/lib/password-policy";
 import type { ActionState } from "@/lib/action-state";
 import type { Role } from "@prisma/client";
 import { z } from "zod";
 
 async function requireAdmin() {
   const session = await auth();
-  if (session?.user.role !== "ADMIN") throw new Error("Admin access required.");
+  if (!session?.user || session.user.role !== "ADMIN") throw new Error("Admin access required.");
   return session;
 }
 
@@ -31,14 +32,15 @@ export async function createUser(_prevState: ActionState, formData: FormData): P
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   const data = parsed.data;
 
-  const existing = await prisma.user.findUnique({ where: { email: data.email } });
+  const existing = await prisma.user.findFirst({ where: { email: { equals: data.email, mode: "insensitive" } } });
   if (existing) return { error: "A user with this email already exists." };
 
   const passwordHash = await bcrypt.hash(data.password, 10);
   const departmentId = await departmentIdForRole(data.role);
 
+  // The administrator chooses the first password, so the new user must replace it at their first sign-in.
   const user = await prisma.user.create({
-    data: { name: data.name, email: data.email, passwordHash, role: data.role, departmentId },
+    data: { name: data.name, email: data.email, passwordHash, role: data.role, departmentId, mustChangePassword: true },
   });
 
   await logActivity({
@@ -97,10 +99,11 @@ export async function changeUserRole(userId: string, role: string) {
 
 export async function resetUserPassword(userId: string, password: string) {
   const session = await requireAdmin();
-  if (password.length < 8) throw new Error("Password must be at least 8 characters.");
+  const checked = passwordSchema.safeParse(password);
+  if (!checked.success) throw new Error(checked.error.issues[0]?.message ?? "Invalid password.");
 
   const passwordHash = await bcrypt.hash(password, 10);
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  await prisma.user.update({ where: { id: userId }, data: { passwordHash, mustChangePassword: true } });
 
   await logActivity({
     userId: session.user.id,

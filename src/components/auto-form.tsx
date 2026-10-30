@@ -9,7 +9,7 @@ type Option = { value: string; label: string };
 
 export type FieldDef =
   | (Base & {
-      kind?: "text" | "email" | "tel" | "number" | "date" | "url";
+      kind?: "text" | "email" | "tel" | "number" | "date" | "url" | "password";
       required?: boolean;
       placeholder?: string;
       defaultValue?: string | number | null;
@@ -17,6 +17,7 @@ export type FieldDef =
       max?: number;
       step?: string;
       list?: string[];
+      autoComplete?: string;
     })
   | (Base & {
       kind: "select";
@@ -239,6 +240,7 @@ function FieldInput({ field, formId }: { field: Exclude<FieldDef, { kind: "hidde
             max={field.max}
             step={field.step}
             list={listId}
+            autoComplete={field.autoComplete}
             className="input"
           />
           {listId && (

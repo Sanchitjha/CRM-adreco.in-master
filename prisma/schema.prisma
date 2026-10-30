@@ -73,6 +73,12 @@ model User {
   active       Boolean  @default(true)
   createdAt    DateTime @default(now())
 
+  /// Set when an administrator creates the account or resets its password: the user must choose their own
+  /// password before using the CRM.
+  mustChangePassword Boolean   @default(false)
+  passwordChangedAt  DateTime?
+  lastLoginAt        DateTime?
+
   department Department? @relation(fields: [departmentId], references: [id])
 
   leadsCreated      Lead[]                  @relation("LeadCreatedBy")
@@ -100,6 +106,18 @@ model User {
 
   @@index([role])
   @@index([departmentId])
+}
+
+/// One row per failed sign-in, used to lock an account (or an address) out for a while after repeated failures.
+/// Rows are cleared when the person signs in successfully and purged by the daily digest job.
+model LoginFailure {
+  id        String   @id @default(cuid())
+  email     String
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([email, createdAt])
+  @@index([ip, createdAt])
 }
 
 model Department {

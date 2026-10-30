@@ -22,7 +22,7 @@ import {
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { formatINR } from "@/lib/utils";
-import { formatDate, today } from "@/lib/dates";
+import { daysSince, formatDate, today } from "@/lib/dates";
 import { amcState } from "@/lib/lifecycle";
 import { AMC_STATE, INSTALLATION_STATUS, ORDER_STATUS, TICKET_STATUS, type StatusMeta } from "@/lib/statuses";
 import { canAccessDepartment, canAccessSurveys, canAccessQuotations, canView } from "@/lib/rbac";
@@ -162,9 +162,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   ];
 
   const lastFollowUp = lead.followUps[0];
-  const daysSinceFollowUp = lastFollowUp
-    ? Math.floor((Date.now() - new Date(lastFollowUp.followUpDate).getTime()) / (1000 * 60 * 60 * 24))
-    : null;
+  const daysSinceFollowUp = lastFollowUp ? daysSince(lastFollowUp.followUpDate) : null;
 
   const leadAiInsight = await analyzeLeadWithAi({
     id: lead.id,

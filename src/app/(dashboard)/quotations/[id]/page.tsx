@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, FileText, ExternalLink, ClipboardCheck, ShoppingCart } from "lucide-react";
+import { ArrowLeft, FileText, ExternalLink, ClipboardCheck, Printer, ShoppingCart } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canAccessQuotations, canManage, canView as canViewModule } from "@/lib/rbac";
+import { canSeeQuotation } from "@/lib/scope";
 import { formatINR } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
 import { SectionCard, Avatar } from "@/components/ui";
@@ -34,11 +35,7 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
   });
   if (!quote) notFound();
 
-  const canView =
-    role === "ADMIN" ||
-    role === "DESIGN" ||
-    (role === "SALES" && (quote.createdById === userId || quote.lead.assignedToId === userId));
-  if (!canView) notFound();
+  if (!canSeeQuotation(role, userId, quote)) notFound();
 
   const canEdit = role === "ADMIN" || role === "DESIGN" || quote.createdById === userId;
 
@@ -83,6 +80,10 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
             label="Send on Zoho Chat"
           />
           <QuoteStatusBadge status={quote.status} />
+          <Link href={`/quotations/${quote.id}/print`} target="_blank" className="btn btn-secondary btn-sm">
+            <Printer className="size-3.5" />
+            Print / PDF
+          </Link>
           <Link href={`/leads/${quote.leadId}`} className="btn btn-secondary btn-sm">
             <ExternalLink className="size-3.5" />
             Open lead
