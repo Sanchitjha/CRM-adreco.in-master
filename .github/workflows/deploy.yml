@@ -1,0 +1,92 @@
+name: Deploy to AWS
+
+# Run by hand: Actions tab, "Deploy to AWS", Run workflow. It builds the images, pushes them to the container
+# registry, applies database migrations, then rolls the new version out. It signs in to AWS without stored
+# passwords, using the role the CloudFormation stack created. Needs two repository variables, both outputs of
+# that stack: AWS_REGION and AWS_DEPLOY_ROLE_ARN. See DEPLOYMENT.md.
+
+on:
+  workflow_dispatch:
+    inputs:
+      migrate:
+        description: Apply database migrations before rolling out
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-aws
+  cancel-in-progress: false
+
+env:
+  CLUSTER: adreco-crm
+  SERVICE: adreco-crm
+  REPOSITORY: adreco-crm
+
+jobs:
+  deploy:
+    name: Build, migrate, roll out
+    # The AWS role only trusts the main branch.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check configuration
+        env:
+          ROLE: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          REGION: ${{ vars.AWS_REGION }}
+        run: |
+          if [ -z "$ROLE" ] || [ -z "$REGION" ]; then
+            echo "::error::Set the repository variables AWS_DEPLOY_ROLE_ARN and AWS_REGION (Settings, Secrets and variables, Actions, Variables). Both are outputs of the CloudFormation stack."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push the images
+        env:
+          IMAGE: ${{ steps.ecr.outputs.registry }}/${{ env.REPOSITORY }}
+        run: |
+          set -euo pipefail
+          docker build -t "$IMAGE:latest" -t "$IMAGE:${GITHUB_SHA}" .
+          docker build --target migrator -t "$IMAGE:migrator" .
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${GITHUB_SHA}"
+          docker push "$IMAGE:migrator"
+
+      - name: Apply database migrations
+        if: ${{ inputs.migrate }}
+        run: |
+          set -euo pipefail
+          # Run the one-off migration task on the same network settings as the app.
+          NETWORK=$(aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].networkConfiguration' --output json)
+          TASK=$(aws ecs run-task --cluster "$CLUSTER" --launch-type FARGATE \
+            --task-definition adreco-crm-migrate --network-configuration "$NETWORK" \
+            --query 'tasks[0].taskArn' --output text)
+          echo "Migration task: $TASK"
+          aws ecs wait tasks-stopped --cluster "$CLUSTER" --tasks "$TASK"
+          CODE=$(aws ecs describe-tasks --cluster "$CLUSTER" --tasks "$TASK" \
+            --query 'tasks[0].containers[0].exitCode' --output text)
+          echo "Migration exit code: $CODE"
+          test "$CODE" = "0"
+
+      - name: Roll out the new version
+        run: |
+          set -euo pipefail
+          aws ecs update-service --cluster "$CLUSTER" --service "$SERVICE" --force-new-deployment > /dev/null
+          aws ecs wait services-stable --cluster "$CLUSTER" --services "$SERVICE"
+          aws ecs describe-services --cluster "$CLUSTER" --services "$SERVICE" \
+            --query 'services[0].{running:runningCount,desired:desiredCount}' --output table
+          echo "Deployed commit ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"

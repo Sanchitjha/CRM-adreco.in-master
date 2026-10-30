@@ -99,8 +99,10 @@ webhook refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
 ## Deployment (AWS)
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full runbook: a single-server starter setup and a
-high-availability one (2+ instances behind an Application Load Balancer, RDS PostgreSQL, S3 for
+high-availability one (containers on ECS Fargate behind an Application Load Balancer, RDS PostgreSQL, S3 for
 documents), the environment variables, first-deploy steps and a security checklist. The `Dockerfile`
 builds the production image (and a one-off `migrator` image for database changes), and
 `.github/workflows/ci.yml` runs the checks and a container smoke test on every push. Nothing is
-provisioned yet — this repo is ready for it when you are.
+provisioned yet — this repo is ready for it when you are. `deploy/aws/adreco-crm-ha.yaml` is the
+CloudFormation template for the high-availability setup, and `.github/workflows/deploy.yml` is the
+manual "Deploy to AWS" workflow (build, migrate, roll out).

@@ -29,6 +29,17 @@ jobs:
       - run: npm test
       - run: npm run build
 
+  template:
+    name: Lint AWS template
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install cfn-lint
+      - run: cfn-lint deploy/aws/adreco-crm-ha.yaml
+
   docker:
     name: Docker image and smoke test
     runs-on: ubuntu-latest
