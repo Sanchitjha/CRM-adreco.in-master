@@ -6,6 +6,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
 import { canAccessQuotations } from "@/lib/rbac";
+import { nextNumber } from "@/lib/sequence";
 import type { ActionState } from "@/lib/action-state";
 import {
   createQuotationSchema,
@@ -27,10 +28,26 @@ async function canQuoteLead(leadId: string, userId: string, role: string): Promi
   return false;
 }
 
+/**
+ * Quotes share the atomic document counter used by orders and jobs, so two people saving at once can't collide and
+ * deleting a quote can't reuse its number. Quotes numbered before the counter existed (from a row count) are
+ * respected: the first number issued for a year carries on from the highest one already in use.
+ */
 async function nextQuoteNumber(): Promise<string> {
-  const year = new Date().getFullYear();
-  const count = await prisma.quotation.count();
-  return `Q-${year}-${(count + 1).toString().padStart(4, "0")}`;
+  const now = new Date();
+  const key = `Q-${now.getFullYear()}`;
+  return prisma.$transaction(async (tx) => {
+    if (!(await tx.sequence.findUnique({ where: { key } }))) {
+      const latest = await tx.quotation.findFirst({
+        where: { quoteNumber: { startsWith: `${key}-` } },
+        orderBy: { quoteNumber: "desc" },
+        select: { quoteNumber: true },
+      });
+      const floor = Number(latest?.quoteNumber.split("-").pop()) || 0;
+      await tx.sequence.upsert({ where: { key }, create: { key, value: floor }, update: {} });
+    }
+    return nextNumber("Q", tx, now);
+  });
 }
 
 export async function createQuotation(_prevState: ActionState, formData: FormData): Promise<ActionState> {

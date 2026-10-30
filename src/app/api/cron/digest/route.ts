@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
-import { endOfDay } from "date-fns";
 import { prisma } from "@/lib/db";
 import { sendMail } from "@/lib/mailer";
-import { formatDate, today } from "@/lib/dates";
+import { purgeOldSignInFailures } from "@/lib/login-throttle";
+import { endOfTodayIst, formatDate, today } from "@/lib/dates";
 import { RENEWAL_REMINDER_DAYS, addDaysUtc, daysBetween } from "@/lib/lifecycle";
 
 export async function POST(request: Request) {
@@ -11,9 +11,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const todayEnd = endOfDay(new Date());
   const now = new Date();
-  const todayDate = today();
+  const todayEnd = endOfTodayIst(now);
+  const todayDate = today(now);
   const users = await prisma.user.findMany({ where: { active: true } });
 
   // AMC contracts reach a reminder window on exactly 60, 30 and 7 days before they end, so each one is
@@ -117,5 +117,7 @@ export async function POST(request: Request) {
     }
   }
 
-  return NextResponse.json({ sent });
+  const purged = await purgeOldSignInFailures(now);
+
+  return NextResponse.json({ sent, purgedSignInFailures: purged });
 }

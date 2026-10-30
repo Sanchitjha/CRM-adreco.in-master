@@ -76,8 +76,9 @@ export function LeadKanban({
     {} as Record<LeadStatus, { count: number; total: number }>,
   );
 
+  // Open deals only, matching the dashboard: won and lost leads are no longer "in the pipeline".
   const totalPipelineBudget = leads.reduce(
-    (sum, l) => (l.status !== "LOST" && l.budget ? sum + Number(l.budget) : sum),
+    (sum, l) => (l.status !== "LOST" && l.status !== "CONVERTED" && l.budget ? sum + Number(l.budget) : sum),
     0,
   );
 

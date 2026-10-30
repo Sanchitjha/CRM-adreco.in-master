@@ -1,11 +1,12 @@
 import Link from "next/link";
 import type { Prisma } from "@prisma/client";
-import { Plus, Contact, Search, LayoutGrid, List, Sparkles } from "lucide-react";
+import { Plus, Contact, Search, LayoutGrid, List, Download, FileUp } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { StatusBadge } from "@/components/status-badge";
 import { PageHeader, Card, Avatar, EmptyState, Badge } from "@/components/ui";
 import { formatINR } from "@/lib/utils";
+import { daysSince } from "@/lib/dates";
 import { LeadKanban, type KanbanLead } from "@/components/leads/lead-kanban";
 import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 import { generateHeuristicInsight } from "@/lib/ai";
@@ -45,9 +46,7 @@ export default async function LeadsPage({
   // Map to KanbanLead with instant heuristic scoring (zero external LLM rate-limit latency)
   const kanbanLeads: KanbanLead[] = leads.map((l) => {
     const lastFollowUp = l.followUps[0];
-    const daysSinceFollowUp = lastFollowUp
-      ? Math.floor((Date.now() - new Date(lastFollowUp.followUpDate).getTime()) / (1000 * 60 * 60 * 24))
-      : null;
+    const daysSinceFollowUp = lastFollowUp ? daysSince(lastFollowUp.followUpDate) : null;
 
     const insight = generateHeuristicInsight({
       id: l.id,
@@ -121,6 +120,23 @@ export default async function LeadsPage({
                 <span>List</span>
               </Link>
             </div>
+
+            {(role === "ADMIN" || role === "SALES") && (
+              <>
+                <Link href="/leads/import" className="btn btn-secondary hidden sm:inline-flex">
+                  <FileUp className="size-4" />
+                  Import
+                </Link>
+                {/* A plain link, not <Link>: prefetching would trigger the export (and its audit entry). */}
+                <a
+                  href={`/leads/export${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+                  className="btn btn-secondary hidden sm:inline-flex"
+                >
+                  <Download className="size-4" />
+                  Export
+                </a>
+              </>
+            )}
 
             <Link href="/leads/new" className="btn btn-primary">
               <Plus className="size-4" />

@@ -26,9 +26,11 @@ You need a PostgreSQL instance to run this. Easiest path is Docker:
    npm run db:migrate
    npm run db:seed
    ```
-   This creates one login per role (`admin@adreco.in`, `sales@adreco.in`, `design@adreco.in`,
-   `accounts@adreco.in`, `installation@adreco.in`, `service@adreco.in`), all with password
-   `ChangeMe123!`. Change these before any real use.
+   This creates one demo login per role (`admin@adreco.in`, `sales@adreco.in`, `design@adreco.in`,
+   `accounts@adreco.in`, `installation@adreco.in`, `service@adreco.in`), all sharing one well-known
+   demo password (see `prisma/seed.ts`). They are for local development only: seeding with
+   `SEED_MODE=production` (or `NODE_ENV=production`) creates a single administrator instead, using a
+   password you supply — see [DEPLOYMENT.md](./DEPLOYMENT.md).
 5. Run the app:
    ```bash
    npm run dev
@@ -78,13 +80,27 @@ leads) and **Settings** (company profile, SLAs and the editable pick-lists).
 Who sees what is defined in one place, `MODULE_ACCESS` in `src/lib/rbac.ts`. Sales reps only see
 records for leads assigned to them.
 
+Day-to-day tools: a **global search** across customers, quotations, orders, serial numbers, tickets,
+products and dealers (it only returns what the signed-in role may open); **lead import and export**
+as CSV, with a check-before-import step and duplicate detection by phone or email; a **duplicate
+warning** when a lead is created twice; and a printable, branded **quotation** (Print / Save as PDF)
+with the amount in words.
+
+Accounts and security: failed sign-ins lock an account (and a network address) for 15 minutes;
+deactivating a user or changing their role takes effect within about a minute, not when their login
+expires; accounts created or reset by an administrator must choose their own password at first
+sign-in (users change it themselves under their name menu → Change password); the public Zoho
+webhook refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
+
 > The lifecycle modules are in the `lifecycle_modules` migration, which also loads the default
 > pick-lists, SLA targets and company profile. Apply it with `npx prisma migrate dev` (local) or
 > `npm run db:migrate:deploy` (deployed).
 
 ## Deployment (AWS)
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full architecture and setup steps: 2+ EC2 instances
-behind an Application Load Balancer, RDS PostgreSQL, S3 for documents, health-check-based
-auto-restart. The `Dockerfile` at the repo root builds a production-ready standalone image. Not yet
-provisioned — this repo is ready for it when you are.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the full runbook: a single-server starter setup and a
+high-availability one (2+ instances behind an Application Load Balancer, RDS PostgreSQL, S3 for
+documents), the environment variables, first-deploy steps and a security checklist. The `Dockerfile`
+builds the production image (and a one-off `migrator` image for database changes), and
+`.github/workflows/ci.yml` runs the checks and a container smoke test on every push. Nothing is
+provisioned yet — this repo is ready for it when you are.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatDate, parseDateInput, toDateInput, today } from "@/lib/dates";
+import { daysSince, endOfTodayIst, formatDate, istHour, parseDateInput, toDateInput, today } from "@/lib/dates";
 
 describe("parseDateInput", () => {
   it("reads a calendar date as UTC midnight", () => {
@@ -28,6 +28,27 @@ describe("IST calendar dates", () => {
 
   it("round-trips a stored date", () => {
     expect(toDateInput(parseDateInput("2026-03-05"))).toBe("2026-03-05");
+  });
+});
+
+describe("Indian day boundaries", () => {
+  const lateEvening = new Date("2026-10-27T19:30:00Z"); // 01:00 on the 28th in India
+
+  it("ends today at 23:59:59.999 IST, whatever the server timezone", () => {
+    expect(endOfTodayIst(lateEvening).toISOString()).toBe("2026-10-28T18:29:59.999Z");
+  });
+
+  it("reads the hour of day in India", () => {
+    expect(istHour(lateEvening)).toBe(1);
+    expect(istHour(new Date("2026-10-28T18:30:00Z"))).toBe(0);
+    expect(istHour(new Date("2026-10-28T06:29:00Z"))).toBe(11);
+  });
+
+  it("counts whole days since a moment", () => {
+    const now = new Date("2026-10-28T12:00:00Z");
+    expect(daysSince("2026-10-25T12:00:00Z", now)).toBe(3);
+    expect(daysSince(new Date("2026-10-27T13:00:00Z"), now)).toBe(0);
+    expect(daysSince("2026-10-30T12:00:00Z", now)).toBe(-2);
   });
 });
 

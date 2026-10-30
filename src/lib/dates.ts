@@ -42,3 +42,21 @@ export function parseDateInput(value: string | null | undefined): Date | null {
 export function today(now: Date = new Date()): Date {
   return parseDateInput(toDateInput(now))!;
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000;
+
+/** The last instant of today's Indian calendar day — the cut-off for "due today". */
+export function endOfTodayIst(now: Date = new Date()): Date {
+  return new Date(today(now).getTime() + DAY_MS - IST_OFFSET_MS - 1);
+}
+
+/** Hour of the day (0–23) in India, for greetings. */
+export function istHour(now: Date = new Date()): number {
+  return Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: TZ }).format(now));
+}
+
+/** Whole days elapsed since a moment; negative when it lies in the future. */
+export function daysSince(value: Date | string, now: Date = new Date()): number {
+  return Math.floor((now.getTime() - new Date(value).getTime()) / DAY_MS);
+}

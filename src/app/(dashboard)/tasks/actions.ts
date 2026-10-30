@@ -9,7 +9,7 @@ import { createTaskSchema, updateTaskStatusSchema } from "@/lib/validation/task"
 
 export async function createTask(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const session = await auth();
-  if (session?.user.role !== "ADMIN") return { error: "Only admin can assign tasks." };
+  if (!session?.user || session.user.role !== "ADMIN") return { error: "Only admin can assign tasks." };
 
   const parsed = createTaskSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };

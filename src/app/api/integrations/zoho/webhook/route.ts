@@ -1,21 +1,30 @@
+import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
+import { findDuplicateLeads } from "@/lib/lead-dedupe";
+
+/** Constant-time comparison, so response timing can't be used to guess the secret one character at a time. */
+function secretMatches(provided: string | null, expected: string): boolean {
+  if (!provided) return false;
+  const a = Buffer.from(provided);
+  const b = Buffer.from(expected);
+  return a.length === b.length && timingSafeEqual(a, b);
+}
 
 /**
  * Inbound Webhook from Zoho CRM / Zoho Forms / Zoho Desk
  * Automatically captures incoming enquiries into Adreco CRM
  */
 export async function POST(req: Request) {
+  // This endpoint is reachable without signing in, so it refuses everything until a secret is configured.
+  const configuredSecret = process.env.ZOHO_WEBHOOK_SECRET;
+  if (!configuredSecret || !secretMatches(req.headers.get("x-zoho-secret"), configuredSecret)) {
+    return NextResponse.json({ error: "Unauthorized Zoho Webhook" }, { status: 401 });
+  }
+
   try {
     const body = await req.json();
-
-    // Verify secret if set
-    const configuredSecret = process.env.ZOHO_WEBHOOK_SECRET;
-    const incomingSecret = req.headers.get("x-zoho-secret");
-    if (configuredSecret && incomingSecret !== configuredSecret) {
-      return NextResponse.json({ error: "Unauthorized Zoho Webhook" }, { status: 401 });
-    }
 
     // Extract fields from Zoho standard payload format
     const customerName =
@@ -24,7 +33,7 @@ export async function POST(req: Request) {
       body.customerName ||
       "Zoho Webhook Lead";
 
-    const phone = body.Phone || body.Mobile || body.phone || "";
+    const phone = String(body.Phone || body.Mobile || body.phone || "").trim();
     const email = body.Email || body.email || null;
     const productCategory = body.Product_Category || body.productCategory || "Heat Pump";
     const requirementNotes = body.Description || body.notes || body.requirementNotes || null;
@@ -33,6 +42,17 @@ export async function POST(req: Request) {
 
     if (!phone) {
       return NextResponse.json({ error: "Phone number is required" }, { status: 400 });
+    }
+
+    // Webhooks are retried and forms get submitted twice, so an enquiry we already hold is acknowledged, not duplicated.
+    const [existing] = await findDuplicateLeads(phone, email);
+    if (existing) {
+      return NextResponse.json({
+        success: true,
+        duplicate: true,
+        leadId: existing.id,
+        message: `${customerName} is already in the CRM; no new lead was created.`,
+      });
     }
 
     // Find default admin or sales user to assign as creator
@@ -72,9 +92,8 @@ export async function POST(req: Request) {
       message: `Lead ${customerName} ingested successfully from Zoho.`,
     });
   } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error);
     console.error("Zoho webhook error:", error);
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return NextResponse.json({ error: "Could not process the webhook payload." }, { status: 500 });
   }
 }
 

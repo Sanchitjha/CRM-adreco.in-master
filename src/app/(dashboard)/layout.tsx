@@ -32,7 +32,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
       role={role}
       userName={name ?? "User"}
       roleLabel={ROLE_LABELS[role]}
-      canSearch={role === "ADMIN" || role === "SALES"}
       notifications={notifications}
       unreadCount={unreadCount}
     >

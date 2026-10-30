@@ -1,0 +1,31 @@
+# Starter deployment: the CRM plus Caddy (automatic HTTPS) on one server, with the database on RDS.
+# Not yet run against a real server; see DEPLOYMENT.md.
+#
+#   export APP_IMAGE=<account>.dkr.ecr.ap-south-1.amazonaws.com/adreco-crm:latest
+#   docker compose -f docker-compose.single-server.yml up -d
+#
+# Settings live in /etc/adreco-crm/.env (see .env.example). Edit the address in Caddyfile first.
+services:
+  app:
+    image: ${APP_IMAGE:?set APP_IMAGE to the image you pushed}
+    restart: unless-stopped
+    env_file: /etc/adreco-crm/.env
+    expose:
+      - "3000"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+volumes:
+  caddy_data:
+  caddy_config:

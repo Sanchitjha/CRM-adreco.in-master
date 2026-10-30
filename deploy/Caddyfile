@@ -1,0 +1,4 @@
+crm.adreco.in {
+	encode gzip
+	reverse_proxy app:3000
+}

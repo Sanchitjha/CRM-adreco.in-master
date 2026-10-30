@@ -7,6 +7,7 @@ import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
 import { nextDepartmentName } from "@/lib/department-pipeline";
 import { createRequiredDocuments } from "@/lib/document-requirements";
+import { findDuplicateLeads } from "@/lib/lead-dedupe";
 import type { ActionState } from "@/lib/action-state";
 import {
   addFollowUpSchema,
@@ -39,6 +40,13 @@ export async function createLead(_prevState: ActionState, formData: FormData): P
   const data = parsed.data;
 
   const assignedToId = session.user.role === "SALES" ? session.user.id : data.assignedToId || null;
+
+  // The same customer is easy to enter twice (a call, then a website form), so stop and show the existing record
+  // unless the person has already seen the warning and chosen to create the lead anyway.
+  if (formData.get("confirmDuplicate") !== "1") {
+    const duplicates = await findDuplicateLeads(data.phone, data.email);
+    if (duplicates.length > 0) return { error: "This customer may already be in the CRM.", duplicates };
+  }
 
   let dealerId: string | null = null;
   if (data.dealerId) {
