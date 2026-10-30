@@ -1,164 +1,150 @@
 # Deploying Adreco CRM on AWS
 
-Nothing is provisioned yet. This is the runbook for when you are ready. Everything below was checked against the
-code in this repository; the parts that could **not** be run on the development machine (no Docker, no AWS
-account) are listed in [What has and hasn't been verified](#what-has-and-hasnt-been-verified).
+Nothing is provisioned yet. High availability (shape B below) was chosen on 2026-10-30, and this guide, the
+CloudFormation template and the deploy workflow are built for it. The Docker image build and smoke test already pass
+on GitHub. The AWS template itself has only been checked offline; see
+[What has and hasn't been verified](#what-has-and-hasnt-been-verified).
 
-## 1. Choose a shape
+## 1. The two shapes
 
-Both shapes run the **same Docker image**, so you can start small and move up without changing the app.
+Both run the **same Docker image**, so you can start small and move up later without changing the app.
 
-| | **A. Starter: one server** | **B. High availability** |
+| | **A. Starter: one server** | **B. High availability (chosen)** |
 |---|---|---|
-| App | 1 EC2 instance (`t4g.small`) running the container, with Caddy for automatic HTTPS | 2+ EC2 instances in an Auto Scaling Group behind an Application Load Balancer, across 2 Availability Zones |
-| Database | RDS PostgreSQL 16, `db.t4g.micro`, single-AZ | Same; switch on **Multi-AZ** to survive a database outage (about doubles the database cost) |
-| Survives | Nothing: if the instance dies the CRM is down until it is replaced (RDS data is safe) | An instance crash, a bad deploy to one instance, an Availability Zone outage |
-| Rough cost* | about US$30–40 / month | about US$70–100 / month (more with Multi-AZ) |
-| Use it for | A pilot, a demo, or a first small client | A client who needs "never down" |
+| App | 1 EC2 instance running the container, with Caddy for automatic HTTPS | 2+ containers on **ECS Fargate** (no servers to patch) in two Availability Zones behind an Application Load Balancer |
+| Database | RDS PostgreSQL 16, `db.t4g.micro` | Same, with an option to add a standby copy (**Multi-AZ**) |
+| Survives | Nothing: if the server dies the CRM is down until it is replaced | A container crash, a bad release (it rolls back by itself), an Availability Zone outage; with Multi-AZ also a database failure |
+| Rough cost* | about US$30–40 / month | about US$80–110 / month |
+| Set up by | By hand (section 8) | One CloudFormation template plus a deploy workflow |
 
 \*Estimates for the Mumbai region (`ap-south-1`) from published on-demand prices; confirm in the AWS pricing
-calculator before committing.
+calculator before committing. Shape B is Application Load Balancer about US$20–25, two small containers about
+US$35–40, database about US$13–15 (about US$27–30 with Multi-AZ), and a few dollars for storage, logs and secrets.
 
 ```
-              Route 53 (crm.adreco.in)
-                        |
-        A: Caddy on the server      B: Application Load Balancer (2 AZs, ACM certificate)
-                        |                          /                      \
-                  Docker: app            EC2 instance A            EC2 instance B
-                        \                          \                      /
-                         +------------------->  RDS PostgreSQL  <---------+
-                                                      |
-                                          S3 (documents, private)
+                      Route 53 / your DNS  (crm.adreco.in)
+                                  |
+              Application Load Balancer  (HTTPS, 2 Availability Zones)
+                          /                    \
+              container (zone a)          container (zone b)      ECS Fargate, 2+ copies
+                          \                    /
+                          RDS PostgreSQL  (private, encrypted, daily backups)
+                                  |
+                      S3 bucket for documents (private)
 ```
 
-## 2. What you need before starting
+## 2. Start these now: they take time
 
-- An AWS account with billing enabled, and a budget alert (AWS Budgets) so a mistake can't run up a bill.
-- The domain (`adreco.in`) and the ability to add DNS records, ideally in Route 53.
-- A verified sender in **Amazon SES** for the follow-up digest emails. New SES accounts start in a *sandbox* that
-  can only email verified addresses; request production access before relying on the digest.
-- Optional, only for the features that use them: a Google Gemini API key (AI advice), WhatsApp Cloud API
-  credentials, Zoho credentials. The CRM works without any of them; click-to-chat WhatsApp needs no keys.
+You can do all of these before anything is built.
 
-## 3. One-time setup
+1. **AWS account.** Create it with the company's billing details. Then, using the root login only for this:
+   turn on multi-factor sign-in, create a normal administrator user for day-to-day work, and add a **budget
+   alert** (Billing, Budgets) at about US$120 a month so a mistake can't run up a bill.
+2. **Region.** Use **Asia Pacific (Mumbai) `ap-south-1`** for everything below, and keep the console on it.
+3. **HTTPS certificate.** In *Certificate Manager* request a public certificate for `crm.adreco.in` with DNS
+   validation. If your DNS is in Route 53, press *Create records in Route 53*; otherwise add the CNAME it shows at
+   whoever hosts your DNS. Wait until it says **Issued**, then copy its ARN.
+4. **Email sending.** In *Simple Email Service* verify your sender address or `adreco.in`, **request production
+   access** (new accounts can only email verified addresses; approval takes about a day), and create SMTP credentials.
 
-1. **Network.** The default VPC is fine to start. Put RDS in subnets without a public route.
-   Security groups: load balancer (or the server) accepts 80/443 from anywhere; the app accepts 3000 from the
-   load balancer only (shape B); **RDS accepts 5432 from the app's security group only**.
-2. **RDS.** PostgreSQL 16, `db.t4g.micro`, 20 GB, automated backups kept 7–14 days, deletion protection on,
-   storage encryption on. Build the connection string as
-   `postgresql://USER:PASSWORD@HOST:5432/adreco_crm?sslmode=require&connection_limit=5`
-   (`connection_limit` keeps several app instances inside a small database's connection limit).
-   If the app reports a certificate error connecting to RDS, add `&sslaccept=accept_invalid_certs` (still
-   encrypted, but the certificate is not verified) or install the RDS CA bundle in the image.
-3. **S3.** One private bucket: block all public access, versioning on, default encryption on. Attach a minimal
-   policy to the instance role (not static keys):
-   ```json
-   { "Version": "2012-10-17", "Statement": [
-     { "Effect": "Allow", "Action": ["s3:PutObject", "s3:GetObject"], "Resource": "arn:aws:s3:::YOUR-BUCKET/*" } ] }
+## 3. Create the stack
+
+1. *CloudFormation*, Create stack, With new resources, **Upload a template file**:
+   [`deploy/aws/adreco-crm-ha.yaml`](deploy/aws/adreco-crm-ha.yaml). Name it `adreco-crm`.
+2. Fill in the parameters. The ones that matter:
+   - `CertificateArn`: from step 2.3. `DomainName`: `crm.adreco.in`.
+   - `HostedZoneId`: only if your DNS is in Route 53. Otherwise leave empty.
+   - `VpcId`: the default VPC. `SubnetIds`: pick two or more in different zones (the default VPC's are public, as needed).
+   - `DesiredCount`: leave at **0** for now.
+   - `DbMultiAz`: `true` for production (a standby database, about US$13 more a month), `false` while testing.
+   - `AlarmEmail`: who is told when the CRM turns unhealthy or the database runs low on space.
+   - `CreateGitHubOidcProvider`: `true`, unless this AWS account already has a GitHub identity provider.
+3. Tick *I acknowledge that CloudFormation might create IAM resources*, and create. It takes 15–25 minutes, mostly
+   the database. Open the stack's **Outputs** tab.
+4. **DNS.** With Route 53 the record is created for you. Otherwise add a CNAME for `crm` pointing at the
+   `LoadBalancerDnsName` output.
+
+The stack creates the network rules, the database (private, encrypted, backed up for 14 days, deletion-protected),
+the document bucket, the image repository, the cluster, the load balancer, generated secrets (nobody types the
+database password or the login-signing key), the daily-digest schedule, alarms, and a role that lets GitHub deploy
+without stored passwords.
+
+## 4. First deployment
+
+1. In GitHub, *Settings, Secrets and variables, Actions, Variables*, add **`AWS_REGION`** and
+   **`AWS_DEPLOY_ROLE_ARN`**, both from the stack's Outputs.
+2. *Actions, Deploy to AWS, Run workflow* (on `main`). It builds the images, pushes them, applies the database
+   migrations as a one-off task, and finishes. No containers run yet, which is expected.
+3. **Create the first administrator.** In AWS *CloudShell* (the `>_` icon in the console), paste this after
+   changing the two values:
+
+   ```bash
+   NETWORK=$(aws ecs describe-services --cluster adreco-crm --services adreco-crm --query 'services[0].networkConfiguration' --output json)
+   aws ecs run-task --cluster adreco-crm --launch-type FARGATE --task-definition adreco-crm-migrate \
+     --network-configuration "$NETWORK" \
+     --overrides '{"containerOverrides":[{"name":"migrate","command":["npm","run","db:seed"],"environment":[{"name":"SEED_MODE","value":"production"},{"name":"SEED_ADMIN_EMAIL","value":"YOUR-EMAIL-HERE"},{"name":"SEED_ADMIN_PASSWORD","value":"YOUR-ONE-TIME-PASSWORD"}]}]}'
    ```
-   Documents are uploaded **directly from the browser** with a short-lived signed URL, so the bucket also needs a
-   CORS rule for the CRM's address:
-   ```json
-   [ { "AllowedOrigins": ["https://crm.adreco.in"], "AllowedMethods": ["PUT", "GET"],
-       "AllowedHeaders": ["*"], "ExposeHeaders": ["ETag"], "MaxAgeSeconds": 3000 } ]
-   ```
-4. **Secrets.** Keep the production values (section 4) in AWS Systems Manager Parameter Store as SecureString
-   and write them to `/etc/adreco-crm/.env` on the server (`chmod 600`). Never put them in the image or the repo.
-5. **ECR.** Create a repository named `adreco-crm` for the images.
-6. **Email.** Verify the sender domain in SES and create SMTP credentials (`SMTP_HOST` is
-   `email-smtp.ap-south-1.amazonaws.com`, port 587).
-7. **HTTPS.** Shape A: Caddy gets a certificate automatically once the DNS record points at the server.
-   Shape B: request an ACM certificate for `crm.adreco.in`, add an HTTPS listener (443) to the load balancer and
-   redirect 80 to 443. Target group: HTTP, port 3000, health check `GET /api/health`, healthy threshold 2,
-   unhealthy threshold 2, interval 15 s.
-8. **DNS.** An A/alias record for `crm.adreco.in` to the server's Elastic IP (A) or the load balancer (B).
 
-## 4. Production environment variables
+   Replace both placeholders: the password needs 12 or more characters with a letter and a number, and the seed
+   refuses to run with the placeholder left in. It is one-time: the administrator must replace it at first
+   sign-in. Never run the plain
+   `npm run db:seed` against production: without `SEED_MODE=production` it creates six demo accounts that share a
+   known password.
+4. **Start the containers.** *CloudFormation*, the stack, Update, *Use existing template*, set **`DesiredCount` to 2**.
+   When the update finishes, open `https://crm.adreco.in`, sign in, choose your own password, and create the real
+   users under **Users** (each gets a temporary password and must change it at first sign-in).
 
-| Variable | Required | Notes |
-|---|---|---|
-| `DATABASE_URL` | yes | RDS connection string from step 3.2 |
-| `AUTH_SECRET` | yes | 32 random bytes: `node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"`. Changing it signs everyone out. |
-| `AUTH_URL` | yes | `https://crm.adreco.in` |
-| `AWS_REGION`, `S3_BUCKET_NAME` | for documents | Leave `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` empty and use the instance role |
-| `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM` | for the digest | SES SMTP values |
-| `CRON_SECRET` | for the digest | Long random string the scheduler sends as header `x-cron-secret` |
-| `ZOHO_WEBHOOK_SECRET` | only if Zoho sends leads in | The inbound webhook **refuses all calls until this is set**; Zoho must send it as header `x-zoho-secret` |
-| `GEMINI_API_KEY` | optional | AI advice and drafted messages; deal scores work without it |
-| `WHATSAPP_API_TOKEN`, `WHATSAPP_PHONE_NUMBER_ID` | optional | WhatsApp Cloud API sending |
-| `ZOHO_*`, `NEXT_PUBLIC_ZOHO_*` | optional | Zoho sync and chat widget. `NEXT_PUBLIC_*` values are baked in at build time. |
+## 5. Optional settings: email, AI, WhatsApp, Zoho
 
-The image already sets `TZ=Asia/Kolkata` (dates, "due today" and greetings follow Indian time),
-`HOSTNAME=0.0.0.0` and `PORT=3000`. `.env.example` lists every key.
+The CRM works without them (click-to-chat WhatsApp needs no keys). To switch some on, make a text file of
+`NAME=value` lines (the names are in [`.env.example`](.env.example): `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`,
+`SMTP_FROM`, `GEMINI_API_KEY`, `WHATSAPP_API_TOKEN`, `ZOHO_WEBHOOK_SECRET` and so on). Upload it to the documents bucket
+(the `DocumentsBucketName` output) as `config/app.env`, then update the stack with `EnvFileKey` set to
+`config/app.env`. After later edits to the file, run *Deploy to AWS* so new containers read it. The file lives in
+a private bucket, and the running app cannot read it.
 
-## 5. First deployment
+The Zoho leads webhook is `POST https://crm.adreco.in/api/integrations/zoho/webhook` with header `x-zoho-secret`.
+It refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
 
-Build and push (from any machine with Docker, or let CI do it):
+## 6. Everyday operations
 
-```bash
-docker build -t adreco-crm .
-docker build --target migrator -t adreco-crm-migrator .
-aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin <account>.dkr.ecr.ap-south-1.amazonaws.com
-docker tag adreco-crm:latest          <account>.dkr.ecr.ap-south-1.amazonaws.com/adreco-crm:latest
-docker tag adreco-crm-migrator:latest <account>.dkr.ecr.ap-south-1.amazonaws.com/adreco-crm:migrator
-docker push <account>.dkr.ecr.ap-south-1.amazonaws.com/adreco-crm:latest
-docker push <account>.dkr.ecr.ap-south-1.amazonaws.com/adreco-crm:migrator
-```
+- **Release a new version:** merge to `main`, then *Deploy to AWS*. New containers start and must pass their health
+  check before the old ones stop. If a release fails to start, ECS **rolls back automatically**.
+- **Roll back by hand:** update the stack with `ImageTag` set to an earlier commit ID (every image is tagged with its
+  commit ID).
+- **Logs:** CloudWatch, Log groups, `/adreco-crm` (`app` and `migrate` streams).
+- **Change capacity:** update `DesiredCount` or `TaskSize`. Setting `DesiredCount` to 0 stops the containers, but the
+  database and load balancer keep costing.
+- **Daily digest:** a schedule calls the digest at 08:00 India time. It needs the email settings in section 5.
+- **Backups:** RDS keeps daily snapshots and transaction logs for 14 days, so you can restore to any minute in that
+  window. **Do one test restore** before relying on it. S3 versioning keeps earlier versions of documents. The
+  containers hold no data. For a portable copy, `pg_dump` from a machine that can reach the database.
+- **Deleting the stack** keeps the database snapshot, the document bucket and the image repository on purpose.
 
-On the server (it can reach RDS), with `/etc/adreco-crm/.env` in place:
+## 7. Environment variables
 
-```bash
-# 1. Create the tables. Run this before every release that changes the database, never from the app containers.
-docker run --rm --env-file /etc/adreco-crm/.env <ecr>/adreco-crm:migrator
+The stack supplies `DATABASE_URL`, `AUTH_SECRET`, `AUTH_URL`, `CRON_SECRET`, `AWS_REGION` and `S3_BUCKET_NAME` itself.
+Everything else comes from the optional file in section 5. The image already sets `TZ=Asia/Kolkata`,
+`HOSTNAME=0.0.0.0` and `PORT=3000`. [`.env.example`](.env.example) lists every name.
 
-# 2. First time only: create the administrator. They must choose a new password at their first sign-in.
-docker run --rm --env-file /etc/adreco-crm/.env -e SEED_MODE=production \
-  -e SEED_ADMIN_EMAIL=you@adreco.in -e SEED_ADMIN_PASSWORD='a-long-one-time-password-1' \
-  <ecr>/adreco-crm:migrator npm run db:seed
+## 8. Shape A: the starter single server
 
-# 3. Start the app.
-docker run -d --name crm --restart unless-stopped -p 3000:3000 --env-file /etc/adreco-crm/.env <ecr>/adreco-crm:latest
-curl -fsS http://127.0.0.1:3000/api/health      # {"status":"ok"}
-```
-
-Shape A: instead of step 3, copy `deploy/docker-compose.single-server.yml` and `deploy/Caddyfile` to the server,
-set `APP_IMAGE`, and run `docker compose -f docker-compose.single-server.yml up -d`.
-
-Then sign in at `https://crm.adreco.in`, set your own password, and create the real users under **Users**
-(each gets a temporary password and must change it at first sign-in). Do **not** run the plain `npm run db:seed`
-against production: without `SEED_MODE=production` it creates six demo accounts that share a known password. (If
-`NODE_ENV=production` is set, the script switches to the safe administrator-only mode on its own, and stops if you
-haven't supplied `SEED_ADMIN_PASSWORD`.)
-
-**Schedule the daily digest** (08:00 India time = 02:30 UTC). Shape A: a cron entry on the server
+Not automated. Launch one EC2 instance (`t4g.small`, Amazon Linux 2023) with Docker, an RDS PostgreSQL 16 database
+reachable only from it, and an S3 bucket with the CORS rule below. Put the settings in `/etc/adreco-crm/.env`, copy
+[`deploy/docker-compose.single-server.yml`](deploy/docker-compose.single-server.yml) and
+[`deploy/Caddyfile`](deploy/Caddyfile) to the server, set `APP_IMAGE`, and run
+`docker compose -f docker-compose.single-server.yml up -d`. Build and push the images to ECR as in
+[`.github/workflows/deploy.yml`](.github/workflows/deploy.yml), run the `migrator` image once
+(`docker run --rm --env-file /etc/adreco-crm/.env <ecr>/adreco-crm:migrator`), and seed the administrator with
+`SEED_MODE=production` and `SEED_ADMIN_PASSWORD` as in section 4. Schedule the digest with a cron entry:
 `30 2 * * * curl -fsS -X POST https://crm.adreco.in/api/cron/digest -H "x-cron-secret: $CRON_SECRET"`.
-Shape B: an EventBridge rule on `cron(30 2 * * ? *)` with an **API destination** (POST to that URL, connection
-header `x-cron-secret`). Don't use a cron on each instance: every instance would send the emails.
 
-**Zoho leads webhook** (only if used): set `ZOHO_WEBHOOK_SECRET`, then point Zoho at
-`POST https://crm.adreco.in/api/integrations/zoho/webhook` sending header `x-zoho-secret`. Repeat sends of the
-same phone or email are acknowledged without creating a second lead.
+```json
+[ { "AllowedOrigins": ["https://crm.adreco.in"], "AllowedMethods": ["PUT", "GET"],
+    "AllowedHeaders": ["*"], "ExposeHeaders": ["ETag"], "MaxAgeSeconds": 3000 } ]
+```
 
-## 6. Shipping updates
-
-1. Merge to `main`. CI (`.github/workflows/ci.yml`) typechecks, lints, runs the tests, builds, then builds the
-   Docker image, applies the migrations to a scratch database and smoke-tests the running container.
-2. Build and push the new images (section 5).
-3. Run the migrator once. Keep migrations **additive** (new tables/columns) so the old version keeps working
-   while the new one rolls out.
-4. Shape A: `docker compose pull && docker compose up -d`. Shape B: an Auto Scaling *instance refresh*, one
-   instance at a time; the load balancer's health check keeps traffic away from an instance until it is healthy.
-
-## 7. Backups and recovery
-
-- RDS takes daily snapshots and keeps transaction logs, so you can restore to any minute inside the retention
-  period. **Do a test restore once** before relying on it.
-- S3 versioning keeps previous versions of uploaded documents.
-- The containers hold no data; replacing one loses nothing.
-- For a portable copy: `pg_dump "$DATABASE_URL" | gzip > adreco-$(date +%F).sql.gz`.
-
-## 8. Security checklist
+## 9. Security checklist
 
 Already enforced by the application:
 
@@ -172,23 +158,30 @@ Already enforced by the application:
 - Lead imports and exports, password changes, user changes and record changes are written to the activity log,
   and each user's last sign-in time is recorded.
 
-For you to do in AWS: RDS in private subnets reachable only from the app; S3 private with encryption; HTTPS only;
-instance role instead of static keys; IMDSv2 required; secrets in Parameter Store; CloudWatch alarms on load
-balancer 5xx, unhealthy hosts, RDS CPU and free storage; an uptime check on `/api/health` (UptimeRobot or a
-Route 53 health check); a budget alert.
+Set up by the stack (shape B): the database is private, reachable only from the containers, encrypted, and
+deletion-protected; the document bucket is private, encrypted, versioned and HTTPS-only; the running app can only read
+and write customer documents; passwords and keys are generated into Secrets Manager; the load balancer serves HTTPS
+only (TLS 1.2 and up) and redirects plain HTTP; GitHub deploys through a role that only trusts the `main` branch.
 
-Known gaps to plan for: no two-factor sign-in or single sign-on yet; password resets are done by an
-administrator (no emailed reset link); `npm audit` still reports three high advisories in the Prisma 6
-**command-line tooling** (build and migration time only, not the running app) which clear only by moving to
-Prisma 7, a separate migration.
+For you: multi-factor sign-in and a budget alert on the AWS account (section 2), the alarm email address, a
+database **Multi-AZ** standby for production, and optionally AWS WAF in front of the load balancer.
+
+Known gaps to plan for: no two-factor sign-in or single sign-on for CRM users yet; password resets are done by an
+administrator (no emailed reset link); the database connection is encrypted but its certificate is not verified (a
+known limitation of Prisma with RDS; verifying it means adding the RDS certificate bundle to the image);
+`npm audit` still reports three high advisories in the Prisma 6 **command-line tooling** (build and migration time
+only, not the running app) which clear only by moving to Prisma 7, a separate migration.
 
 ## What has and hasn't been verified
 
-Verified on the development machine against a real PostgreSQL database: typecheck, lint, 121 unit tests, a
-production build, the exact standalone server the image runs (health check, security headers, static files,
-sign-in redirects behind a load balancer's Host header), and every page and feature in a browser.
+**Verified:** typecheck, lint, 121 unit tests, a production build, and the full container flow in GitHub's CI (it
+builds the image, applies all migrations to a real PostgreSQL, starts the container and smoke-tests health, headers,
+redirects and the Indian time zone). Every page and feature was also exercised in a browser against a real database.
 
-**Not verified, because it needs Docker or an AWS account:** building the image (CI does this on its first run),
-running it as the non-root user, the `migrator` image, ECR/EC2/ALB/ASG, RDS TLS settings, S3 uploads (the CORS rule
-and signed URLs), SES delivery, and live calls to Gemini, WhatsApp and Zoho. The first deployment is where these
-get proven, so plan to watch it and expect small fixes.
+**Checked only offline:** the CloudFormation template parses and every reference inside it resolves, and `cfn-lint`
+runs on it in CI. The deploy workflow is valid YAML.
+
+**Not verified, because it needs an AWS account:** the template actually creating its resources, ECS and load-balancer
+behaviour, the database connection settings against RDS, S3 uploads from the browser (CORS and signed links), SES
+delivery, the scheduled digest, the deploy workflow end to end, and live calls to Gemini, WhatsApp and Zoho. The first
+deployment is where these get proven, so plan to watch it and expect small fixes.
