@@ -28,6 +28,8 @@ export default async function LeadsPage({
           { customerName: { contains: q, mode: "insensitive" } },
           { phone: { contains: q } },
           { email: { contains: q, mode: "insensitive" } },
+          { address: { contains: q, mode: "insensitive" } },
+          { contacts: { some: { OR: [{ name: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }] } } },
         ],
       }
     : {};
