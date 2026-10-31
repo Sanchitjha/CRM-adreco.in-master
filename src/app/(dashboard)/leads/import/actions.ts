@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { logActivity } from "@/lib/activity-log";
+import { parseCsv } from "@/lib/csv";
 import { phoneKey } from "@/lib/lead-dedupe";
-import { parseLeadCsv, type ImportProblem, type ImportRow } from "@/lib/lead-import";
+import { parseLeadTable, type ImportProblem, type ImportRow } from "@/lib/lead-import";
+import { looksLikeXlsx, readXlsx } from "@/lib/xlsx-lite";
 import type { ActionState } from "@/lib/action-state";
 
 const MAX_FILE_BYTES = 2 * 1024 * 1024;
@@ -16,13 +18,19 @@ export type ImportDuplicate = { line: number; customerName: string; phone: strin
 export type ImportReport = {
   mode: "check" | "import";
   totalRows: number;
-  /** Rows that will be added (check) or were added (import). */
+  /** Prospects that will be (check) or were (import) added. */
   ready: number;
+  /** Other people on those prospects that will be, or were, saved with them. */
+  contacts: number;
+  /** Prospects that come with a follow-up (call notes and a next date). */
+  followUps: number;
   duplicates: ImportDuplicate[];
   problems: ImportProblem[];
 };
 
 export type ImportState = ActionState & { report?: ImportReport };
+
+const atMidnightUtc = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 
 export async function importLeads(_prev: ImportState, formData: FormData): Promise<ImportState> {
   const session = await auth();
@@ -31,11 +39,23 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
   if (role !== "ADMIN" && role !== "SALES") return { error: "You do not have permission to import leads." };
 
   const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose a CSV file to upload." };
+  if (!(file instanceof File) || file.size === 0) return { error: "Choose a CSV or Excel file to upload." };
   if (file.size > MAX_FILE_BYTES) return { error: "That file is larger than 2 MB. Split it into smaller files." };
   const mode = formData.get("mode") === "import" ? "import" : "check";
 
-  const parsed = parseLeadCsv(await file.text());
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  let table: string[][];
+  if (looksLikeXlsx(bytes)) {
+    try {
+      table = readXlsx(bytes).rows;
+    } catch {
+      return { error: "That Excel file could not be read. Save it again as .xlsx (or as CSV) and try once more." };
+    }
+  } else {
+    table = parseCsv(new TextDecoder("utf-8").decode(bytes));
+  }
+
+  const parsed = parseLeadTable(table);
   if (parsed.fatal) return { error: parsed.fatal };
 
   // Only administrators can hand leads to someone else; a salesperson's imports always belong to them.
@@ -48,14 +68,21 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
       : [];
   const ownerByEmail = new Map(owners.map((u) => [u.email.toLowerCase(), u.id]));
 
-  // Compare against every lead in the CRM, not just the importer's, so the same customer isn't chased twice.
-  const existing = await prisma.lead.findMany({ select: { customerName: true, phone: true, email: true } });
-  const nameByPhone = new Map<string, string>();
-  const nameByEmail = new Map<string, string>();
+  // Compare against every lead in the CRM, and the contacts saved on them, so the same customer isn't chased twice.
+  const [existing, existingContacts] = await Promise.all([
+    prisma.lead.findMany({ select: { customerName: true, phone: true, email: true } }),
+    prisma.leadContact.findMany({ where: { phone: { not: null } }, select: { phone: true, lead: { select: { customerName: true } } } }),
+  ]);
+  const reasonByPhone = new Map<string, string>();
+  const reasonByEmail = new Map<string, string>();
   for (const l of existing) {
     const key = phoneKey(l.phone);
-    if (key.length >= 7 && !nameByPhone.has(key)) nameByPhone.set(key, l.customerName);
-    if (l.email) nameByEmail.set(l.email.trim().toLowerCase(), l.customerName);
+    if (key.length >= 7 && !reasonByPhone.has(key)) reasonByPhone.set(key, `Already in the CRM as “${l.customerName}”`);
+    if (l.email) reasonByEmail.set(l.email.trim().toLowerCase(), `Already in the CRM as “${l.customerName}”`);
+  }
+  for (const c of existingContacts) {
+    const key = phoneKey(c.phone ?? "");
+    if (key.length >= 7 && !reasonByPhone.has(key)) reasonByPhone.set(key, `Already in the CRM as a contact on “${c.lead.customerName}”`);
   }
 
   const problems = [...parsed.problems];
@@ -76,15 +103,15 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
 
     const key = phoneKey(row.phone);
     const emailKey = row.email?.toLowerCase();
-    const existingName = nameByPhone.get(key) ?? (emailKey ? nameByEmail.get(emailKey) : undefined);
+    const existingReason = reasonByPhone.get(key) ?? (emailKey ? reasonByEmail.get(emailKey) : undefined);
     const repeated = seenPhones.has(key) || (emailKey ? seenEmails.has(emailKey) : false);
 
-    if (existingName || repeated) {
+    if (existingReason || repeated) {
       duplicates.push({
         line: row.line,
         customerName: row.customerName,
         phone: row.phone,
-        reason: existingName ? `Already in the CRM as “${existingName}”` : "Repeated earlier in this file",
+        reason: existingReason ?? "Repeated earlier in this file",
       });
       continue;
     }
@@ -95,7 +122,15 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
   }
 
   problems.sort((a, b) => a.line - b.line);
-  const report: ImportReport = { mode, totalRows: parsed.totalRows, ready: toCreate.length, duplicates, problems };
+  const report: ImportReport = {
+    mode,
+    totalRows: parsed.totalRows,
+    ready: toCreate.length,
+    contacts: toCreate.reduce((n, { row }) => n + row.contacts.length, 0),
+    followUps: toCreate.filter(({ row }) => row.followUp).length,
+    duplicates,
+    problems,
+  };
 
   if (mode === "check") {
     return {
@@ -105,26 +140,59 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
   }
 
   if (toCreate.length > 0) {
-    await prisma.lead.createMany({
-      data: toCreate.map(({ row, assignedToId }) => ({
-        customerName: row.customerName,
-        phone: row.phone,
-        email: row.email,
-        address: row.address,
-        productCategory: row.productCategory,
-        requirementNotes: row.requirementNotes,
-        budget: row.budget,
-        source: row.source ?? "Imported",
-        assignedToId,
-        createdById: userId,
-      })),
-    });
+    // Each prospect is saved together with its other contacts and its follow-up, all or nothing.
+    await prisma.$transaction(
+      async (tx) => {
+        for (const { row, assignedToId } of toCreate) {
+          await tx.lead.create({
+            data: {
+              customerName: row.customerName,
+              contactRole: row.contactRole,
+              phone: row.phone,
+              email: row.email,
+              address: row.address,
+              productCategory: row.productCategory,
+              requirementNotes: row.requirementNotes,
+              budget: row.budget,
+              source: row.source ?? "Imported",
+              referredBy: row.referredBy,
+              status: row.status,
+              assignedToId,
+              createdById: userId,
+              ...(row.enquiryDate ? { createdAt: atMidnightUtc(row.enquiryDate) } : {}),
+              contacts: {
+                create: row.contacts.map((c) => ({ name: c.name, role: c.role, phone: c.phone, email: c.email })),
+              },
+              followUps: row.followUp
+                ? {
+                    create: [
+                      {
+                        userId,
+                        note: row.followUp.note,
+                        nextFollowUpDate: row.followUp.nextDate ? atMidnightUtc(row.followUp.nextDate) : null,
+                      },
+                    ],
+                  }
+                : undefined,
+            },
+          });
+        }
+      },
+      { timeout: 120_000, maxWait: 10_000 },
+    );
     await logActivity({
       userId,
       action: "LEADS_IMPORTED",
       entityType: "Lead",
       entityId: "import",
-      details: { fileName: file.name, created: toCreate.length, duplicates: duplicates.length, problems: problems.length },
+      details: {
+        fileName: file.name,
+        created: toCreate.length,
+        contacts: report.contacts,
+        followUps: report.followUps,
+        duplicates: duplicates.length,
+        problems: problems.length,
+      },
     });
     revalidatePath("/leads");
   }
