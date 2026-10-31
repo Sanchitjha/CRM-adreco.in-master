@@ -33,18 +33,18 @@ export function ImportLeadsForm() {
       <form method="post" onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="lead-file" className="label">
-            CSV file
+            Excel or CSV file
           </label>
           <input
             id="lead-file"
             name="file"
             type="file"
-            accept=".csv,text/csv"
+            accept=".xlsx,.csv,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             required
             onChange={(e) => setFileName(e.target.files?.[0]?.name ?? "")}
             className="block w-full text-sm text-slate-600 file:mr-3 file:rounded-lg file:border-0 file:bg-slate-100 file:px-3 file:py-2 file:text-sm file:font-medium file:text-slate-700 hover:file:bg-slate-200"
           />
-          <p className="mt-1 text-xs text-slate-400">Save your spreadsheet as “CSV UTF-8”. Up to 2,000 leads and 2 MB.</p>
+          <p className="mt-1 text-xs text-slate-400">An Excel sheet (.xlsx) or a CSV. Up to 2,000 rows and 2 MB.</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -76,9 +76,11 @@ export function ImportLeadsForm() {
             <CircleCheck className="size-4 shrink-0" />
             {state.message}
           </p>
-          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+          <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
             <Stat label="Rows in file" value={report.totalRows} />
-            <Stat label={imported ? "Imported" : "Ready to import"} value={report.ready} />
+            <Stat label={imported ? "Leads imported" : "Leads ready to import"} value={report.ready} />
+            <Stat label="Other contacts" value={report.contacts} />
+            <Stat label="With follow-up" value={report.followUps} />
             <Stat label="Already in CRM" value={report.duplicates.length} />
             <Stat label="Need fixing" value={report.problems.length} />
           </dl>
