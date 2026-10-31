@@ -21,6 +21,8 @@ export async function GET(request: Request) {
           { customerName: { contains: q, mode: "insensitive" } },
           { phone: { contains: q } },
           { email: { contains: q, mode: "insensitive" } },
+          { address: { contains: q, mode: "insensitive" } },
+          { contacts: { some: { OR: [{ name: { contains: q, mode: "insensitive" } }, { phone: { contains: q } }] } } },
         ],
       }
     : {};
@@ -30,6 +32,7 @@ export async function GET(request: Request) {
     include: {
       assignedTo: { select: { name: true } },
       dealer: { select: { name: true } },
+      contacts: { select: { name: true, role: true, phone: true }, orderBy: { createdAt: "asc" } },
       followUps: { select: { followUpDate: true, nextFollowUpDate: true }, orderBy: { followUpDate: "desc" }, take: 1 },
     },
     orderBy: { createdAt: "desc" },
@@ -37,11 +40,13 @@ export async function GET(request: Request) {
 
   const rows: unknown[][] = [
     [
-      "Customer name", "Phone", "Email", "Address", "Product category", "Budget", "Source", "Status",
-      "Owner", "Dealer", "Created on", "Last follow-up", "Next follow-up", "Requirement notes",
+      "Customer name", "Their role", "Phone", "Email", "Address", "Product category", "Budget", "Source", "Status",
+      "Owner", "Dealer", "Created on", "Last follow-up", "Next follow-up", "Requirement notes", "Project stage",
+      "Referred by", "Competitor", "Other contacts",
     ],
     ...leads.map((l) => [
       l.customerName,
+      l.contactRole,
       l.phone,
       l.email,
       l.address,
@@ -55,6 +60,10 @@ export async function GET(request: Request) {
       l.followUps[0] ? formatDate(l.followUps[0].followUpDate) : null,
       l.followUps[0]?.nextFollowUpDate ? formatDate(l.followUps[0].nextFollowUpDate) : null,
       l.requirementNotes,
+      l.projectStage,
+      l.referredBy,
+      l.competitor,
+      l.contacts.map((c) => [c.name, c.role ? `(${c.role})` : "", c.phone ?? ""].filter(Boolean).join(" ")).join("; "),
     ]),
   ];
 
