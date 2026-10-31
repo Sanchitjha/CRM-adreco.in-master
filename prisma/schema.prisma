@@ -143,6 +143,15 @@ model Lead {
   source           String?
   status           LeadStatus @default(NEW)
 
+  /// Role of the main contact on the project: owner, site in-charge, contractor, plumber…
+  contactRole  String?
+  /// Where the building or project stands: early construction, near completion, on hold…
+  projectStage String?
+  /// Who introduced this prospect: a plumber, an architect, an existing customer…
+  referredBy   String?
+  /// The brand the prospect is leaning towards, if they have mentioned one.
+  competitor   String?
+
   createdById String
   createdBy   User   @relation("LeadCreatedBy", fields: [createdById], references: [id])
 
@@ -161,6 +170,7 @@ model Lead {
   tasks            Task[]
   siteSurveys      SiteSurvey[]
   quotations       Quotation[]
+  contacts         LeadContact[]
 
   dealerId String?
   dealer   Dealer? @relation(fields: [dealerId], references: [id])
@@ -175,6 +185,22 @@ model Lead {
   @@index([assignedToId])
   @@index([currentDepartmentId])
   @@index([dealerId])
+}
+
+/// The other people on a prospect's project besides the main contact: the owner, the site in-charge, the
+/// contractor, the plumber, the architect. A project usually has several, and any of them may be the one who decides.
+model LeadContact {
+  id        String   @id @default(cuid())
+  leadId    String
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  name      String
+  role      String?
+  phone     String?
+  email     String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  @@index([leadId])
 }
 
 model SiteSurvey {
