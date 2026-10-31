@@ -21,6 +21,24 @@ export const createLeadSchema = z.object({
   source: z.string().trim().optional(),
   assignedToId: z.string().trim().optional(),
   dealerId: z.string().trim().optional(),
+  contactRole: z.string().trim().max(80).optional(),
+  projectStage: z.string().trim().max(80).optional(),
+  referredBy: z.string().trim().max(200).optional(),
+  competitor: z.string().trim().max(120).optional(),
+});
+
+/** Another person on a lead's project: the owner, the site in-charge, the contractor, the architect. */
+export const addContactSchema = z.object({
+  leadId: z.string().min(1),
+  name: z.string().trim().min(1, "Name is required").max(200),
+  role: z.string().trim().max(80).optional(),
+  phone: z
+    .string()
+    .trim()
+    .max(40)
+    .refine((v) => v === "" || v.replace(/\D/g, "").length >= 7, "That phone number looks too short")
+    .optional(),
+  email: z.union([z.string().trim().email("Enter a valid email"), z.literal("")]).optional(),
 });
 
 export const addFollowUpSchema = z.object({
