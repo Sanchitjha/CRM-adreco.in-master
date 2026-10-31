@@ -82,7 +82,12 @@ records for leads assigned to them.
 
 Day-to-day tools: a **global search** across customers, quotations, orders, serial numbers, tickets,
 products and dealers (it only returns what the signed-in role may open); **lead import and export**
-as CSV, with a check-before-import step and duplicate detection by phone or email; a **duplicate
+from Excel or CSV, with a check-before-import step and duplicate detection by phone or email (the
+importer reads a sales team's own prospect sheet: rows without a serial number become extra contacts
+of the prospect above, a role in brackets after a name is kept, and the remarks, next follow-up date
+and quote notes become the lead's first follow-up); **people on a project** (owner, site in-charge,
+contractor… each with a role, phone and WhatsApp link) alongside project stage, referral and
+competitor fields; a **duplicate
 warning** when a lead is created twice; and a printable, branded **quotation** (Print / Save as PDF)
 with the amount in words.
 
