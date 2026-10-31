@@ -25,7 +25,7 @@ export type DuplicateLead = {
   ownerName: string | null;
 };
 
-/** Existing leads that share this phone number or email address. */
+/** Existing leads that share this phone number or email address, including a number saved as another contact. */
 export async function findDuplicateLeads(phone: string, email?: string | null): Promise<DuplicateLead[]> {
   const key = phoneKey(phone);
 
@@ -35,6 +35,9 @@ export async function findDuplicateLeads(phone: string, email?: string | null): 
       ? await prisma.$queryRaw<{ id: string }[]>`
           SELECT "id" FROM "Lead"
           WHERE RIGHT(REGEXP_REPLACE("phone", '[^0-9]', '', 'g'), 10) = ${key}
+          UNION
+          SELECT "leadId" AS "id" FROM "LeadContact"
+          WHERE "phone" IS NOT NULL AND RIGHT(REGEXP_REPLACE("phone", '[^0-9]', '', 'g'), 10) = ${key}
           LIMIT 25`
       : [];
 
