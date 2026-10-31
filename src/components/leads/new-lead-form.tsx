@@ -5,6 +5,7 @@ import Link from "next/link";
 import { TriangleAlert } from "lucide-react";
 import { createLead } from "@/app/(dashboard)/leads/actions";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
+import { CONTACT_ROLES, PROJECT_STAGES } from "@/lib/lead-options";
 
 type SalesUser = { id: string; name: string };
 type DealerOption = { id: string; name: string };
@@ -84,6 +85,44 @@ export function NewLeadForm({
       </div>
 
       <Field label="Address" name="address" placeholder="Site / billing address" />
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <div>
+          <label htmlFor="contactRole" className="label">
+            Their role on the project
+          </label>
+          <input
+            id="contactRole"
+            name="contactRole"
+            list="contact-roles"
+            placeholder="e.g. Owner, Site in-charge"
+            className="input"
+          />
+          <datalist id="contact-roles">
+            {CONTACT_ROLES.map((r) => (
+              <option key={r} value={r} />
+            ))}
+          </datalist>
+        </div>
+        <div>
+          <label className="label" htmlFor="projectStage">
+            Project stage
+          </label>
+          <select id="projectStage" name="projectStage" className="select" defaultValue="">
+            <option value="">Select…</option>
+            {PROJECT_STAGES.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+        </div>
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Referred by" name="referredBy" placeholder="e.g. a plumber, an architect" />
+        <Field label="Competitor in mind" name="competitor" placeholder="Brand they are comparing" />
+      </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div>
