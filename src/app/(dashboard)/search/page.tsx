@@ -100,7 +100,15 @@ async function search(term: string, role: Parameters<typeof canView>[0], userId:
       where: {
         AND: [
           role === "SALES" ? { assignedToId: userId } : {},
-          { OR: [{ customerName: like }, { phone: { contains: term } }, { email: like }, { address: like }] },
+          {
+            OR: [
+              { customerName: like },
+              { phone: { contains: term } },
+              { email: like },
+              { address: like },
+              { contacts: { some: { OR: [{ name: like }, { phone: { contains: term } }] } } },
+            ],
+          },
         ],
       },
       select: { id: true, customerName: true, phone: true, status: true },
