@@ -20,7 +20,7 @@ export default async function ImportLeadsPage() {
       <PageHeader
         icon={FileUp}
         title="Import leads"
-        description="Bring in enquiries from a spreadsheet. Customers already in the CRM are skipped."
+        description="Bring in prospects from an Excel or CSV sheet, with their contacts and call notes. Customers already in the CRM are skipped."
         actions={
           <Link href="/leads/import/template" className="btn btn-secondary">
             <Download className="size-4" />
@@ -37,13 +37,16 @@ export default async function ImportLeadsPage() {
         <Card className="h-fit space-y-3 p-5 text-sm text-slate-600">
           <h2 className="text-sm font-semibold text-slate-900">How it works</h2>
           <ol className="list-decimal space-y-1.5 pl-4">
-            <li>Download the template and paste your leads under its headings.</li>
-            <li>Save it as CSV and choose the file.</li>
+            <li>Use your own sheet, or download the template. Columns are matched by their headings.</li>
+            <li>Choose the file (.xlsx or .csv).</li>
             <li>Press “Check file” to see what will happen. Nothing is saved yet.</li>
             <li>Press “Import” to add the leads.</li>
           </ol>
           <p className="text-xs text-slate-400">
-            Only customer name and phone are required. A lead is treated as a duplicate when its phone number
+            Only customer name and phone are required. If the sheet has a serial-number column (Sr.No.), a row without
+            a number is another person on the prospect above it, such as the site in-charge or the contractor; a role in
+            brackets after a name, like “(Owner)”, is kept as their role. Remarks, Follow-up and Quote columns become the
+            lead’s first follow-up. A lead is treated as a duplicate when its phone number
             (ignoring +91 and spaces) or email is already in the CRM.
             {role === "ADMIN"
               ? " Add an “Owner email” column to assign leads to a salesperson; otherwise they are left unassigned."
