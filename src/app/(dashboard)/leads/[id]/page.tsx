@@ -18,6 +18,10 @@ import {
   ChevronRight,
   Handshake,
   ShoppingCart,
+  UserRound,
+  Building2,
+  Swords,
+  Share2,
 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -39,6 +43,7 @@ import { SectionCard, Avatar, Badge, EmptyState } from "@/components/ui";
 import { AiLeadAdvisor } from "@/components/ai/ai-lead-advisor";
 import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
 import { ZohoSyncButton } from "@/components/leads/zoho-sync-button";
+import { LeadContacts } from "@/components/leads/lead-contacts";
 import { analyzeLeadWithAi } from "@/lib/ai";
 
 function formatBudget(value: unknown): string {
@@ -69,6 +74,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       installations: { orderBy: { createdAt: "desc" } },
       tickets: { orderBy: { createdAt: "desc" } },
       amcContracts: { orderBy: { createdAt: "desc" } },
+      contacts: { orderBy: { createdAt: "asc" } },
     },
   });
 
@@ -100,7 +106,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const details: { icon: typeof Phone; label: string; value: React.ReactNode }[] = [
     { icon: Phone, label: "Phone", value: lead.phone },
     { icon: Mail, label: "Email", value: lead.email ?? "—" },
+    ...(lead.contactRole ? [{ icon: UserRound, label: "Their role", value: lead.contactRole }] : []),
     { icon: Package, label: "Product category", value: lead.productCategory ?? "—" },
+    ...(lead.projectStage ? [{ icon: Building2, label: "Project stage", value: lead.projectStage }] : []),
+    ...(lead.competitor ? [{ icon: Swords, label: "Competitor in mind", value: lead.competitor }] : []),
+    ...(lead.referredBy ? [{ icon: Share2, label: "Referred by", value: lead.referredBy }] : []),
     { icon: IndianRupee, label: "Budget", value: formatBudget(lead.budget) },
     { icon: Radio, label: "Source", value: lead.source ?? "—" },
     {
@@ -195,6 +205,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           <div>
             <h1 className="text-2xl font-semibold tracking-tight text-slate-900">{lead.customerName}</h1>
             <p className="mt-0.5 text-sm text-slate-500">
+              {lead.contactRole ? `${lead.contactRole} · ` : ""}
               {lead.phone}
               {lead.email ? ` · ${lead.email}` : ""}
             </p>
@@ -475,6 +486,8 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               </div>
             )}
           </SectionCard>
+
+          <LeadContacts leadId={lead.id} contacts={lead.contacts} canEdit={canManageSalesFields} />
 
           {canManageSalesFields && (
             <SectionCard title="Manage" description="Update status and ownership" icon={Waypoints}>
