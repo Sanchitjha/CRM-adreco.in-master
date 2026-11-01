@@ -8,6 +8,7 @@ import { logActivity } from "@/lib/activity-log";
 import { parseCsv } from "@/lib/csv";
 import { phoneKey } from "@/lib/lead-dedupe";
 import { parseLeadTable, type ImportProblem, type ImportRow } from "@/lib/lead-import";
+import { leadFromImportRow } from "@/lib/lead-import-save";
 import { looksLikeXlsx, readXlsx } from "@/lib/xlsx-lite";
 import type { ActionState } from "@/lib/action-state";
 
@@ -29,8 +30,6 @@ export type ImportReport = {
 };
 
 export type ImportState = ActionState & { report?: ImportReport };
-
-const atMidnightUtc = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
 
 export async function importLeads(_prev: ImportState, formData: FormData): Promise<ImportState> {
   const session = await auth();
@@ -144,38 +143,7 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
     await prisma.$transaction(
       async (tx) => {
         for (const { row, assignedToId } of toCreate) {
-          await tx.lead.create({
-            data: {
-              customerName: row.customerName,
-              contactRole: row.contactRole,
-              phone: row.phone,
-              email: row.email,
-              address: row.address,
-              productCategory: row.productCategory,
-              requirementNotes: row.requirementNotes,
-              budget: row.budget,
-              source: row.source ?? "Imported",
-              referredBy: row.referredBy,
-              status: row.status,
-              assignedToId,
-              createdById: userId,
-              ...(row.enquiryDate ? { createdAt: atMidnightUtc(row.enquiryDate) } : {}),
-              contacts: {
-                create: row.contacts.map((c) => ({ name: c.name, role: c.role, phone: c.phone, email: c.email })),
-              },
-              followUps: row.followUp
-                ? {
-                    create: [
-                      {
-                        userId,
-                        note: row.followUp.note,
-                        nextFollowUpDate: row.followUp.nextDate ? atMidnightUtc(row.followUp.nextDate) : null,
-                      },
-                    ],
-                  }
-                : undefined,
-            },
-          });
+          await tx.lead.create({ data: leadFromImportRow(row, userId, assignedToId) });
         }
       },
       { timeout: 120_000, maxWait: 10_000 },
