@@ -38,7 +38,9 @@ You need a PostgreSQL instance to run this. Easiest path is Docker:
    Visit http://localhost:3000/login.
 
 No Docker? Point `DATABASE_URL` in `.env` at any PostgreSQL 14+ instance instead (local install, or a
-free-tier hosted one) and skip `npm run db:up`.
+free-tier hosted one) and skip `npm run db:up`. The database must use UTF-8: the Windows installer's
+default is not, and a database like that cannot save ₹, emoji or Hindi text (the Zoho Chat and WhatsApp
+messages fail). Create it with `CREATE DATABASE adreco_crm ENCODING 'UTF8' TEMPLATE template0;`.
 
 ## Other useful commands
 
