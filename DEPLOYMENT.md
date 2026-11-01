@@ -96,6 +96,25 @@ without stored passwords.
    When the update finishes, open `https://crm.adreco.in`, sign in, choose your own password, and create the real
    users under **Users** (each gets a temporary password and must change it at first sign-in).
 
+## 4a. A demo copy with dummy data
+
+To let someone try the CRM before real data goes in, seed it in demo mode instead of creating the administrator
+(step 4.3). Use the same command with these two overrides in place of the three above:
+`{"name":"SEED_MODE","value":"demo"}` and `{"name":"SEED_DEMO_PASSWORD","value":"A-PASSWORD-YOU-CHOOSE"}`
+(12 or more characters, with a letter and a number; the seed refuses anything weaker, and refuses the shared
+development password).
+
+You get one account per role (`admin@`, `sales@`, `design@`, `accounts@`, `installation@` and `service@adreco.in`, all
+on that one password), six products whose model codes start with `DEMO-` so they cannot be mistaken for real ones, and
+40 made-up prospects in the layout of a sales team's sheet, owned by the sales account. Every name, company and number
+is invented, and the phone numbers start with 5 so none can be a real mobile number (a WhatsApp link goes nowhere).
+Dates are relative to the day you seed, so the dashboard shows follow-ups overdue, due today and coming up. A demo seed
+refuses a database that has any other users, and loads the prospects only when there are no leads yet.
+
+A demo copy is a separate environment from the one that will hold real customers: do not seed demo data into it. This
+template names its cluster, repository and log group `adreco-crm`, so one AWS account and region holds one stack. To run
+a demo and the real CRM side by side, put them in different regions or accounts, or delete the demo stack first.
+
 ## 5. Optional settings: email, AI, WhatsApp, Zoho
 
 The CRM works without them (click-to-chat WhatsApp needs no keys). To switch some on, make a text file of
