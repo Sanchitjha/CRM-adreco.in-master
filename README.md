@@ -31,6 +31,11 @@ You need a PostgreSQL instance to run this. Easiest path is Docker:
    demo password (see `prisma/seed.ts`). They are for local development only: seeding with
    `SEED_MODE=production` (or `NODE_ENV=production`) creates a single administrator instead, using a
    password you supply — see [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+   To show the CRM to someone, seed a separate database with dummy data: set `SEED_MODE=demo` and
+   `SEED_DEMO_PASSWORD` (12 or more characters, with a letter and a number) before `npm run db:seed`. You get the
+   six accounts on that password, six `DEMO-` products and 40 made-up prospects laid out like a sales team's sheet,
+   dated relative to the day you seed.
 5. Run the app:
    ```bash
    npm run dev
