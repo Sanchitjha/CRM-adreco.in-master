@@ -2,6 +2,9 @@ import { PrismaClient, type Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEPARTMENT_PIPELINE, ROLE_TO_DEPARTMENT_NAME } from "../src/lib/rbac";
 import { passwordSchema } from "../src/lib/password-policy";
+import { DEMO_PRODUCTS, demoProspectSheet } from "../src/lib/demo-data";
+import { parseLeadTable } from "../src/lib/lead-import";
+import { leadFromImportRow } from "../src/lib/lead-import-save";
 
 const prisma = new PrismaClient();
 
@@ -32,9 +35,9 @@ async function seedDepartments() {
   return new Map(departments.map((d) => [d.name, d]));
 }
 
-/** Local development: one demo account per role, all sharing a known password. */
-async function seedDemoUsers(departmentByName: Awaited<ReturnType<typeof seedDepartments>>) {
-  const passwordHash = await bcrypt.hash(DEMO_PASSWORD, 10);
+/** One account per role, all sharing the given password. Accounts that already exist are left as they are. */
+async function seedRoleUsers(departmentByName: Awaited<ReturnType<typeof seedDepartments>>, password: string) {
+  const passwordHash = await bcrypt.hash(password, 10);
 
   for (const u of SEED_USERS) {
     const departmentName = ROLE_TO_DEPARTMENT_NAME[u.role];
@@ -50,9 +53,53 @@ async function seedDemoUsers(departmentByName: Awaited<ReturnType<typeof seedDep
       },
     });
   }
+}
+
+/** Local development: one demo account per role, all sharing a known password. */
+async function seedDevelopmentUsers(departmentByName: Awaited<ReturnType<typeof seedDepartments>>) {
+  await seedRoleUsers(departmentByName, DEMO_PASSWORD);
 
   console.log(`Seeded ${departmentByName.size} departments and ${SEED_USERS.length} demo users.`);
   console.log(`Demo password for all seeded users: ${DEMO_PASSWORD}`);
+}
+
+/**
+ * A demo or test copy to hand to someone: one account per role with a password you supply (never the shared
+ * development one), a small product catalogue, and made-up prospects in the layout of a sales team's sheet, owned by
+ * the sales account. Only for a database that exists for that purpose: it refuses one that has other users, and it
+ * loads the sample prospects only into a CRM that has no leads yet.
+ */
+async function seedDemo(departmentByName: Awaited<ReturnType<typeof seedDepartments>>) {
+  const password = process.env.SEED_DEMO_PASSWORD ?? "";
+  const strong = passwordSchema.safeParse(password).success && password.length >= 12 && password !== DEMO_PASSWORD;
+  if (!strong) {
+    throw new Error("Set SEED_DEMO_PASSWORD to a password of at least 12 characters, with a letter and a number, before seeding a demo.");
+  }
+
+  const others = await prisma.user.count({ where: { email: { notIn: SEED_USERS.map((u) => u.email) } } });
+  if (others > 0) throw new Error("This database has other users, so it is not a demo copy. Demo accounts were not added.");
+
+  await seedRoleUsers(departmentByName, password);
+  for (const product of DEMO_PRODUCTS) {
+    await prisma.product.upsert({ where: { modelCode: product.modelCode }, update: {}, create: product });
+  }
+
+  const sales = await prisma.user.findUniqueOrThrow({ where: { email: "sales@adreco.in" } });
+  let prospects = 0;
+  if ((await prisma.lead.count()) === 0) {
+    const sheet = parseLeadTable(demoProspectSheet());
+    if (sheet.fatal || sheet.problems.length > 0) throw new Error(`The sample prospects could not be read: ${sheet.fatal ?? sheet.problems[0].message}`);
+    await prisma.$transaction(
+      async (tx) => {
+        for (const row of sheet.rows) await tx.lead.create({ data: leadFromImportRow(row, sales.id, sales.id) });
+      },
+      { timeout: 120_000, maxWait: 10_000 },
+    );
+    prospects = sheet.rows.length;
+  }
+
+  console.log(`Seeded ${departmentByName.size} departments, ${SEED_USERS.length} accounts, ${DEMO_PRODUCTS.length} products and ${prospects} sample prospects.`);
+  console.log("Everyone signs in with the password given in SEED_DEMO_PASSWORD.");
 }
 
 /**
@@ -90,8 +137,10 @@ async function seedProductionAdmin(departmentByName: Awaited<ReturnType<typeof s
 
 async function main() {
   const departmentByName = await seedDepartments();
-  if (production) await seedProductionAdmin(departmentByName);
-  else await seedDemoUsers(departmentByName);
+  // A demo is asked for by name, so it wins even inside a production-built container, where everything else is production.
+  if (process.env.SEED_MODE === "demo") await seedDemo(departmentByName);
+  else if (production) await seedProductionAdmin(departmentByName);
+  else await seedDevelopmentUsers(departmentByName);
 }
 
 main()
