@@ -33,18 +33,45 @@ export function classifyRole(text: string): string | null {
   return null;
 }
 
+export type Person = { name: string; role: string | null };
+
+// What people type between two names in one cell: "A (Owner), B", "A (Owner) / B", "A (Owner) & B", "A (Owner) and B".
+const SEPARATOR = /^(?:[\s,;/&+–—-]|and\s)+/i;
+
+/** A short run of words that starts with a capital letter and has no digits: a name, not a remark or a phone number. */
+function looksLikeName(text: string): boolean {
+  const first = text[0];
+  return (
+    /^\p{L}/u.test(text) &&
+    first === first.toUpperCase() &&
+    /\p{L}{2}/u.test(text) &&
+    !/\d/.test(text) &&
+    text.split(" ").length <= 4
+  );
+}
+
 /**
- * "Mr. Rajat Mittal (Partner)" becomes the name "Mr. Rajat Mittal" and the role "Partner". Brackets that don't
- * hold a recognisable role, like "Abhinav Gupta (Rounak)", stay in the name.
+ * The people named in one Name cell. "Mr. Dev Kohli (Partner)" is the name "Mr. Dev Kohli" with the role "Partner",
+ * and a role followed by another name starts a second person: "Dev (Site Incharge) Mr. Kapoor" is Dev, the site
+ * in-charge, and Mr. Kapoor. Brackets that don't hold a recognisable role, like "Anil Kumar (Ravi)", stay in the
+ * name, and so does anything after a role that doesn't look like a name, so nothing typed is dropped. There is
+ * always at least one entry; its name is empty when the cell is.
  */
-export function splitNameAndRole(raw: string): { name: string; role: string | null } {
+export function splitPeople(raw: string): Person[] {
   const cleaned = raw.replace(/\s+/g, " ").trim();
-  const match = cleaned.match(/^(.*?)\s*\(([^()]*)\)\s*$/);
-  if (match && match[1].trim()) {
-    const role = classifyRole(match[2]);
-    if (role) return { name: match[1].trim(), role };
+  const people: Person[] = [];
+  let start = 0;
+  for (const bracket of cleaned.matchAll(/\(([^()]*)\)/g)) {
+    const role = classifyRole(bracket[1]);
+    const name = cleaned.slice(start, bracket.index).replace(SEPARATOR, "").trim();
+    if (!role || !name) continue;
+    people.push({ name, role });
+    start = bracket.index + bracket[0].length;
   }
-  return { name: cleaned, role: null };
+
+  const rest = cleaned.slice(start).replace(SEPARATOR, "").trim();
+  if (people.length === 0 || (rest !== "" && !looksLikeName(rest))) return [{ name: cleaned, role: null }];
+  return rest === "" ? people : [...people, { name: rest, role: null }];
 }
 
 /** The product category this text points at, using the CRM's default category names, or null. */

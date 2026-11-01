@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { parseCsv } from "@/lib/csv";
-import { extractEmail, firstAmount, guessCategory, parseFlexibleDate, splitNameAndRole } from "@/lib/prospect-parse";
+import { extractEmail, firstAmount, guessCategory, parseFlexibleDate, splitPeople, type Person } from "@/lib/prospect-parse";
 
 export const MAX_IMPORT_ROWS = 2000;
 
@@ -102,6 +102,10 @@ function normaliseHeader(value: string): string {
 
 const digitCount = (value: string) => value.replace(/\D/g, "").length;
 
+/** People typed into the same cell as the row's first person share that row, so they get a name and role but no phone or email. */
+const alsoOnRow = (line: number, people: Person[]): ImportContact[] =>
+  people.map((person) => ({ line, name: person.name, role: person.role, phone: null, email: null }));
+
 /** "₹ 12,50,000", "Rs. 450000" and "4.5" all become numbers; anything else is rejected. */
 export function parseBudget(raw: string): number | null | "invalid" {
   const cleaned = raw.replace(/[₹,\s]/g, "").replace(/^rs\.?/i, "");
@@ -185,7 +189,7 @@ export function parseLeadTable(table: string[][]): ParsedImport {
         return;
       }
 
-      const { name, role } = splitNameAndRole(cellOf(cells, "customerName"));
+      const [{ name, role }, ...others] = splitPeople(cellOf(cells, "customerName"));
       const phoneText = cellOf(cells, "phone");
       const followRaw = cellOf(cells, "followUpDate");
       const followDate = followRaw ? parseFlexibleDate(followRaw) : null;
@@ -212,6 +216,7 @@ export function parseLeadTable(table: string[][]): ParsedImport {
         phone,
         email: (emailSchema.safeParse(emailCell).success ? emailCell : null) ?? extractEmail(projectText),
       });
+      prospect.row.contacts.push(...alsoOnRow(line, others));
       // A contact's row often carries the project details too; lend them to the prospect if it has none.
       prospect.row.address ??= cellOf(cells, "address") || null;
       prospect.row.requirementNotes ??= projectText || null;
@@ -225,7 +230,7 @@ export function parseLeadTable(table: string[][]): ParsedImport {
     closeProspect();
     skipped = null;
 
-    const { name: customerName, role } = splitNameAndRole(cellOf(cells, "customerName"));
+    const [{ name: customerName, role }, ...others] = splitPeople(cellOf(cells, "customerName"));
     const phone = cellOf(cells, "phone");
     const emailCell = cellOf(cells, "email");
     const projectText = cellOf(cells, "requirementNotes");
@@ -271,7 +276,7 @@ export function parseLeadTable(table: string[][]): ParsedImport {
         assignedTo: cellOf(cells, "assignedTo").toLowerCase() || null,
         status: "NEW",
         enquiryDate,
-        contacts: [],
+        contacts: alsoOnRow(line, others),
         followUp: null,
       },
       remarks: remarks ? [remarks] : [],

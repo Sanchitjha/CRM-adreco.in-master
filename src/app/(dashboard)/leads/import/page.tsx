@@ -45,7 +45,8 @@ export default async function ImportLeadsPage() {
           <p className="text-xs text-slate-400">
             Only customer name and phone are required. If the sheet has a serial-number column (Sr.No.), a row without
             a number is another person on the prospect above it, such as the site in-charge or the contractor; a role in
-            brackets after a name, like “(Owner)”, is kept as their role. Remarks, Follow-up and Quote columns become the
+            brackets after a name, like “(Owner)”, is kept as their role, and two people typed into one cell become two
+            contacts. Remarks, Follow-up and Quote columns become the
             lead’s first follow-up. A lead is treated as a duplicate when its phone number
             (ignoring +91 and spaces) or email is already in the CRM.
             {role === "ADMIN"

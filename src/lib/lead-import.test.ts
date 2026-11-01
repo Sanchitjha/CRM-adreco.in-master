@@ -130,13 +130,13 @@ const PROSPECT_HEADER = ["Date", "Sr.No.", "Contact No.", "Name", "Company Name/
 describe("parseLeadTable with a prospect sheet", () => {
   const table = [
     PROSPECT_HEADER,
-    ["", "1", "9000000001", "Ms. Asha Rao", "Sector 8, Chd", "10 x 15 x 4 Pool Size", "", "Pool at an early stage", "33kW Heat Pump, 375000/-"],
-    ["", "", "9000000002", "Narayan (Site Incharge)", "Sector 8, Chd", "", "", "", ""],
+    ["", "1", "9000000001", "Ms. Asha Rao", "Baner, Pune", "10 x 15 x 4 Pool Size", "", "Pool at an early stage", "33kW Heat Pump, 375000/-"],
+    ["", "", "9000000002", "Dev (Site Incharge)", "Baner, Pune", "", "", "", ""],
     ["", "2", "9000000003", "Amar", "Gangtok", "300 L Dom", "2026-11-18", "Delayed, call after 20 days", "300 L 165000/-"],
-    ["", "3", "9000000004", "Mr. Raj Mittal (Partner)", "Hotel Near Phase 1", "45 Rooms Hotel", "2026-11-29", "New construction", ""],
-    ["", "", "9000000005", "Mr. Yogesh Mittal", "", "", "2026-11-10", "No reply 10/9", ""],
-    ["", "", "9000000006", "Sarwan (Plumber)", "", "", "", "Call on 23/9", ""],
-    ["", "4", "9000000007", "Mr. Sam (Owner)", "Zirakpur", "manager@example.com", "", "", ""],
+    ["", "3", "9000000004", "Mr. Raj Kohli (Partner)", "Hotel Near Phase 1", "45 Rooms Hotel", "2026-11-29", "New construction", ""],
+    ["", "", "9000000005", "Mr. Yash Kohli", "", "", "2026-11-10", "No reply 10/9", ""],
+    ["", "", "9000000006", "Jeet (Plumber)", "", "", "", "Call on 23/9", ""],
+    ["", "4", "9000000007", "Mr. Sam (Owner)", "Nashik", "manager@example.com", "", "", ""],
   ];
   const out = parseLeadTable(table);
 
@@ -144,14 +144,14 @@ describe("parseLeadTable with a prospect sheet", () => {
     expect(out.fatal).toBeNull();
     expect(out.problems).toEqual([]);
     expect(out.totalRows).toBe(7);
-    expect(out.rows.map((r) => r.customerName)).toEqual(["Ms. Asha Rao", "Amar", "Mr. Raj Mittal", "Mr. Sam"]);
+    expect(out.rows.map((r) => r.customerName)).toEqual(["Ms. Asha Rao", "Amar", "Mr. Raj Kohli", "Mr. Sam"]);
     expect(out.rows.map((r) => r.contacts.length)).toEqual([1, 0, 2, 0]);
-    expect(out.rows[0].contacts[0]).toEqual({ line: 3, name: "Narayan", role: "Site in-charge", phone: "9000000002", email: null });
+    expect(out.rows[0].contacts[0]).toEqual({ line: 3, name: "Dev", role: "Site in-charge", phone: "9000000002", email: null });
   });
 
   it("takes the role out of the name and keeps the location as the address", () => {
-    expect(out.rows[2]).toMatchObject({ customerName: "Mr. Raj Mittal", contactRole: "Partner", address: "Hotel Near Phase 1" });
-    expect(out.rows[2].contacts.map((c) => [c.name, c.role])).toEqual([["Mr. Yogesh Mittal", null], ["Sarwan", "Plumber"]]);
+    expect(out.rows[2]).toMatchObject({ customerName: "Mr. Raj Kohli", contactRole: "Partner", address: "Hotel Near Phase 1" });
+    expect(out.rows[2].contacts.map((c) => [c.name, c.role])).toEqual([["Mr. Yash Kohli", null], ["Jeet", "Plumber"]]);
   });
 
   it("works out the application, the price and where the prospect stands", () => {
@@ -164,7 +164,7 @@ describe("parseLeadTable with a prospect sheet", () => {
     expect(out.rows[0].followUp).toEqual({ note: "Pool at an early stage\nQuote given: 33kW Heat Pump, 375000/-", nextDate: null });
     expect(out.rows[1].followUp?.nextDate).toBe("2026-11-18");
     expect(out.rows[2].followUp).toEqual({
-      note: "New construction\nMr. Yogesh Mittal: No reply 10/9\nSarwan: Call on 23/9",
+      note: "New construction\nMr. Yash Kohli: No reply 10/9\nJeet: Call on 23/9",
       nextDate: "2026-11-10",
     });
     expect(out.rows[3].followUp).toBeNull();
@@ -195,6 +195,30 @@ describe("parseLeadTable with a prospect sheet", () => {
     ]);
     expect(repeated.rows).toHaveLength(1);
     expect(repeated.rows[0].contacts).toEqual([]);
+  });
+
+  it("keeps two people typed into a prospect's name cell as the prospect and one more contact", () => {
+    const two = parseLeadTable([
+      PROSPECT_HEADER,
+      ["", "1", "9000000001", "Dev (Site Incharge) Mr. Kapoor", "Baner, Pune", "", "", "Called once", ""],
+    ]);
+    expect(two.problems).toEqual([]);
+    expect(two.rows).toHaveLength(1);
+    expect(two.rows[0]).toMatchObject({ customerName: "Dev", contactRole: "Site in-charge", phone: "9000000001" });
+    expect(two.rows[0].contacts).toEqual([{ line: 2, name: "Mr. Kapoor", role: null, phone: null, email: null }]);
+  });
+
+  it("splits a contact row that names two people, giving its phone to the first", () => {
+    const two = parseLeadTable([
+      PROSPECT_HEADER,
+      ["", "1", "9000000001", "Ms. Asha Rao", "", "", "", "", ""],
+      ["", "", "9000000002", "Jeet (Plumber) Mr. Bose (Foreman)", "", "", "", "Call on 23/9", ""],
+    ]);
+    expect(two.rows[0].contacts).toEqual([
+      { line: 3, name: "Jeet", role: "Plumber", phone: "9000000002", email: null },
+      { line: 3, name: "Mr. Bose", role: "Foreman", phone: null, email: null },
+    ]);
+    expect(two.rows[0].followUp?.note).toBe("Jeet: Call on 23/9");
   });
 
   it("treats every row as its own lead when the sheet has no serial number column", () => {

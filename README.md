@@ -84,7 +84,8 @@ Day-to-day tools: a **global search** across customers, quotations, orders, seri
 products and dealers (it only returns what the signed-in role may open); **lead import and export**
 from Excel or CSV, with a check-before-import step and duplicate detection by phone or email (the
 importer reads a sales team's own prospect sheet: rows without a serial number become extra contacts
-of the prospect above, a role in brackets after a name is kept, and the remarks, next follow-up date
+of the prospect above, a role in brackets after a name is kept, two people typed into one cell become two
+contacts, and the remarks, next follow-up date
 and quote notes become the lead's first follow-up); **people on a project** (owner, site in-charge,
 contractor… each with a role, phone and WhatsApp link) alongside project stage, referral and
 competitor fields; a **duplicate
