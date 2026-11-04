@@ -22,6 +22,7 @@ import {
   Building2,
   Swords,
   Share2,
+  MessagesSquare,
 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
@@ -44,6 +45,9 @@ import { AiLeadAdvisor } from "@/components/ai/ai-lead-advisor";
 import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 import { LeadContacts } from "@/components/leads/lead-contacts";
 import { analyzeLeadWithAi } from "@/lib/ai";
+import { listMessages } from "@/lib/chat";
+import { ChatConversation } from "@/components/chat/chat-conversation";
+import { LeadEmailSection } from "@/components/leads/lead-email-section";
 
 function formatBudget(value: unknown): string {
   if (value === null || value === undefined) return "—";
@@ -173,6 +177,11 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
   const lastFollowUp = lead.followUps[0];
   const daysSinceFollowUp = lastFollowUp ? daysSince(lastFollowUp.followUpDate) : null;
 
+  // The team's discussion of this lead. Anyone who can open the lead may read and write in it; it is created by
+  // the first message, so opening a lead never writes anything.
+  const thread = await prisma.chatChannel.findUnique({ where: { leadId: lead.id }, select: { id: true } });
+  const threadMessages = thread ? await listMessages(thread.id) : [];
+
   const leadAiInsight = await analyzeLeadWithAi({
     id: lead.id,
     customerName: lead.customerName,
@@ -261,6 +270,28 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
               <FollowUpForm leadId={lead.id} />
             </SectionCard>
           )}
+
+          <LeadEmailSection
+            lead={lead}
+            viewer={{ name: session!.user.name ?? "Team member", email: session!.user.email ?? "", role: session!.user.role }}
+          />
+
+          <SectionCard
+            title="Team discussion"
+            description="Talk about this lead with colleagues who can open it. Administrators can read it."
+            icon={MessagesSquare}
+            bodyClassName="p-0"
+          >
+            <ChatConversation
+              channelId={thread?.id ?? null}
+              leadId={lead.id}
+              title={lead.customerName}
+              viewerId={session!.user.id}
+              initialMessages={threadMessages}
+              canWrite
+              embedded
+            />
+          </SectionCard>
 
           <DocumentsSection
             leadId={lead.id}

@@ -79,6 +79,9 @@ model User {
   passwordChangedAt  DateTime?
   lastLoginAt        DateTime?
 
+  /// WhatsApp number (digits with country code) that receives the daily update when this person is an admin.
+  whatsappNumber String?
+
   department Department? @relation(fields: [departmentId], references: [id])
 
   leadsCreated      Lead[]                  @relation("LeadCreatedBy")
@@ -92,6 +95,10 @@ model User {
   notifications     Notification[]
   siteSurveys       SiteSurvey[]            @relation("SurveyBy")
   quotations        Quotation[]             @relation("QuoteBy")
+
+  chatMessages ChatMessage[]
+  chatReads    ChatRead[]
+  emailsSent   LeadEmail[]
 
   salesOrders           SalesOrder[]    @relation("OrderBy")
   installationsCreated  Installation[]  @relation("InstallBy")
@@ -180,6 +187,9 @@ model Lead {
   serialNumbers SerialNumber[]
   tickets       ServiceTicket[]
   amcContracts  AmcContract[]
+
+  chatChannel ChatChannel?
+  emails      LeadEmail[]
 
   @@index([status])
   @@index([assignedToId])
@@ -378,6 +388,95 @@ model Notification {
   createdAt DateTime @default(now())
 
   @@index([userId, read])
+}
+
+/**
+ * ============================================================================
+ * Team chat and email to customers
+ * ==========================================================================
+ */
+
+enum ChatChannelKind {
+  /// A private conversation between two people.
+  DIRECT
+  /// A named room: everyone, or everyone in one role.
+  GROUP
+  /// The discussion of one lead, open to whoever may open that lead.
+  LEAD
+}
+
+/// A conversation. `key` is unique per conversation so it can be found or created in one step:
+/// "dm:<smaller user id>:<larger user id>", "group:all", "group:role:SALES" or "lead:<lead id>".
+model ChatChannel {
+  id            String          @id @default(cuid())
+  kind          ChatChannelKind
+  key           String          @unique
+  /// Shown for GROUP channels.
+  name          String?
+  /// For GROUP channels tied to one role; empty means everyone.
+  audienceRole  Role?
+  leadId        String?         @unique
+  lead          Lead?           @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  createdAt     DateTime        @default(now())
+  lastMessageAt DateTime        @default(now())
+
+  messages ChatMessage[]
+  reads    ChatRead[]
+
+  @@index([kind])
+  @@index([lastMessageAt])
+}
+
+/// Messages are never edited or deleted: administrators can read every conversation, so what was said stays said.
+model ChatMessage {
+  id        String      @id @default(cuid())
+  channelId String
+  channel   ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User        @relation(fields: [authorId], references: [id])
+  body      String
+  createdAt DateTime    @default(now())
+
+  @@index([channelId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+/// When a person last opened a conversation; messages from others after that moment are "unread".
+model ChatRead {
+  channelId  String
+  channel    ChatChannel @relation(fields: [channelId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastReadAt DateTime    @default(now())
+
+  @@id([channelId, userId])
+  @@index([userId])
+}
+
+enum EmailStatus {
+  SENT
+  FAILED
+}
+
+/// An email sent to a customer from the lead page, kept so the whole team can see what was said.
+model LeadEmail {
+  id          String      @id @default(cuid())
+  leadId      String
+  lead        Lead        @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  sentById    String
+  sentBy      User        @relation(fields: [sentById], references: [id])
+  toAddresses String
+  ccAddresses String?
+  subject     String
+  body        String
+  /// File names that went with the email.
+  attachments String[]
+  status      EmailStatus
+  error       String?
+  createdAt   DateTime    @default(now())
+
+  @@index([leadId, createdAt])
+  @@index([sentById, createdAt])
 }
 
 /**

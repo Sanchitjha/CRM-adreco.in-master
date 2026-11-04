@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { daysSince, endOfTodayIst, formatDate, istHour, parseDateInput, toDateInput, today } from "@/lib/dates";
+import {
+  daysSince,
+  endOfTodayIst,
+  formatDate,
+  formatLongDate,
+  formatTime,
+  istHour,
+  parseDateInput,
+  startOfDayIstAgo,
+  startOfTodayIst,
+  toDateInput,
+  today,
+} from "@/lib/dates";
 
 describe("parseDateInput", () => {
   it("reads a calendar date as UTC midnight", () => {
@@ -49,6 +61,36 @@ describe("Indian day boundaries", () => {
     expect(daysSince("2026-10-25T12:00:00Z", now)).toBe(3);
     expect(daysSince(new Date("2026-10-27T13:00:00Z"), now)).toBe(0);
     expect(daysSince("2026-10-30T12:00:00Z", now)).toBe(-2);
+  });
+});
+
+describe("start of an Indian day", () => {
+  const lateEvening = new Date("2026-10-27T19:30:00Z"); // 01:00 on the 28th in India
+
+  it("starts today at midnight IST", () => {
+    expect(startOfTodayIst(lateEvening).toISOString()).toBe("2026-10-27T18:30:00.000Z");
+  });
+
+  it("counts back whole Indian days", () => {
+    expect(startOfDayIstAgo(0, lateEvening).toISOString()).toBe("2026-10-27T18:30:00.000Z");
+    expect(startOfDayIstAgo(1, lateEvening).toISOString()).toBe("2026-10-26T18:30:00.000Z");
+    expect(startOfDayIstAgo(7, lateEvening).toISOString()).toBe("2026-10-20T18:30:00.000Z");
+  });
+
+  it("makes yesterday end exactly where today starts", () => {
+    expect(startOfDayIstAgo(0, lateEvening).getTime() - startOfDayIstAgo(1, lateEvening).getTime()).toBe(24 * 60 * 60 * 1000);
+  });
+});
+
+describe("formatTime and formatLongDate", () => {
+  it("shows the time of day in India", () => {
+    expect(formatTime(new Date("2026-10-28T12:12:00Z"))).toBe("5:42 pm");
+    expect(formatTime(null)).toBe("—");
+  });
+
+  it("shows a long date in India, even just after midnight there", () => {
+    expect(formatLongDate(new Date("2026-10-27T19:30:00Z"))).toBe("Wed, 28 Oct 2026");
+    expect(formatLongDate(undefined)).toBe("—");
   });
 });
 

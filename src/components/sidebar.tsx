@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import type { Role } from "@prisma/client";
 import { navGroupsForRole } from "@/lib/nav";
 import { BrandLogo } from "@/components/brand-mark";
+import { ChatUnreadBadge } from "@/components/chat/chat-unread-badge";
 
 function isActive(pathname: string, href: string): boolean {
   if (href === "/") return pathname === "/";
@@ -41,6 +42,7 @@ export function SidebarNav({ role, onNavigate }: { role: Role; onNavigate?: () =
                   >
                     <Icon className="size-[18px]" strokeWidth={2} />
                     <span className="flex-1 truncate">{item.label}</span>
+                    {item.href === "/chat" && <ChatUnreadBadge />}
                   </Link>
                 );
               })}

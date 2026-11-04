@@ -69,6 +69,11 @@ curl -X POST https://crm.adreco.in/api/cron/digest -H "x-cron-secret: $CRON_SECR
 Requires `SMTP_HOST`/`SMTP_USER`/`SMTP_PASSWORD` and `CRON_SECRET` set in `.env`. If SMTP isn't
 configured, the route just skips sending for each user rather than failing.
 
+The same run also sends the administrators their **daily update**: what each person did the day before (from the
+activity record and the team chat), who did nothing, and what is overdue, by email and, when the company's WhatsApp
+Business API is set up and an administrator has saved a number under Settings, as a WhatsApp message. The dashboard
+shows the same thing live (*Team today*, and *Team activity* for today, yesterday and the last 7 days).
+
 ## Where things stand
 
 See `prisma/schema.prisma` for the full data model and the project's build plan for the phase
@@ -98,6 +103,15 @@ contractor… each with a role, phone and WhatsApp link) alongside project stage
 competitor fields; a **duplicate
 warning** when a lead is created twice; and a printable, branded **quotation** (Print / Save as PDF)
 with the amount in words.
+
+**Team chat and email:** employees talk to each other inside the CRM with the same sign-in (private messages, a
+channel for everyone and one for each department, and a discussion on every lead that only the people who can open
+that lead can see). Administrators can read every conversation, private ones included; everyone is told so on screen,
+an administrator opening a private conversation is recorded, and messages cannot be edited or deleted. Employees email
+a lead's contacts from the lead page; the email goes out from the company's address with the employee's name and
+signature (replies reach the employee), files from the lead's documents can be attached, and every email is kept on the
+lead and added to its follow-up history. Chat needs no setup; email and the WhatsApp update are set up in
+[DEPLOYMENT.md](./DEPLOYMENT.md), section 5.
 
 Accounts and security: failed sign-ins lock an account (and a network address) for 15 minutes;
 deactivating a user or changing their role takes effect within about a minute, not when their login

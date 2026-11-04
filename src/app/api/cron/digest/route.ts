@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { sendMail } from "@/lib/mailer";
+import { sendAdminDailyUpdate } from "@/lib/admin-update";
 import { purgeOldSignInFailures } from "@/lib/login-throttle";
 import { endOfTodayIst, formatDate, today } from "@/lib/dates";
 import { RENEWAL_REMINDER_DAYS, addDaysUtc, daysBetween } from "@/lib/lifecycle";
@@ -117,7 +118,16 @@ export async function POST(request: Request) {
     }
   }
 
+  // The administrators' daily update: what the team did yesterday, who did nothing, and what is overdue. It goes by
+  // email, and by WhatsApp to the admins who have a number saved. A problem here must not stop the rest of the job.
+  let adminUpdate: Awaited<ReturnType<typeof sendAdminDailyUpdate>> | { error: string };
+  try {
+    adminUpdate = await sendAdminDailyUpdate({ kind: "yesterday", now });
+  } catch (error) {
+    adminUpdate = { error: error instanceof Error ? error.message.slice(0, 200) : "The daily update failed." };
+  }
+
   const purged = await purgeOldSignInFailures(now);
 
-  return NextResponse.json({ sent, purgedSignInFailures: purged });
+  return NextResponse.json({ sent, purgedSignInFailures: purged, adminUpdate });
 }

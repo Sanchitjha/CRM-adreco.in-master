@@ -33,6 +33,16 @@ export async function getUploadUrl(key: string, contentType: string) {
   return getSignedUrl(getClient(), command, { expiresIn: 300 });
 }
 
+/** Reads a stored file into memory, refusing anything larger than `maxBytes`. Used to attach it to an email. */
+export async function getObjectBytes(key: string, maxBytes: number): Promise<Buffer> {
+  const response = await getClient().send(new GetObjectCommand({ Bucket: BUCKET(), Key: key }));
+  if ((response.ContentLength ?? 0) > maxBytes) throw new Error("A file is too large to attach.");
+  const bytes = await response.Body?.transformToByteArray();
+  if (!bytes) throw new Error("A file could not be read.");
+  if (bytes.byteLength > maxBytes) throw new Error("A file is too large to attach.");
+  return Buffer.from(bytes);
+}
+
 export async function getDownloadUrl(key: string) {
   const command = new GetObjectCommand({ Bucket: BUCKET(), Key: key });
   return getSignedUrl(getClient(), command, { expiresIn: 300 });
