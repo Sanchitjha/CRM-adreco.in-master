@@ -15,7 +15,6 @@ import {
   createLeadSchema,
   updateStatusSchema,
 } from "@/lib/validation/lead";
-import { pushLeadToZoho } from "@/lib/zoho";
 
 function firstIssueMessage(issues: { message: string }[]): string {
   return issues[0]?.message ?? "Invalid input";
@@ -254,37 +253,6 @@ export async function logWhatsAppInteraction(params: {
   return { success: true };
 }
 
-export async function logZohoChatInteraction(params: {
-  leadId: string;
-  phone?: string;
-  message: string;
-  templateId?: string;
-}): Promise<{ success: boolean; error?: string }> {
-  const session = await auth();
-  if (!session?.user) return { success: false, error: "Unauthorized" };
-
-  await prisma.followUp.create({
-    data: {
-      leadId: params.leadId,
-      userId: session.user.id,
-      note: `[Zoho Chat] ${params.message}`,
-      outcome: "Message sent via Zoho Chat",
-    },
-  });
-
-  await logActivity({
-    userId: session.user.id,
-    action: "ZOHO_CHAT_MESSAGE_SENT",
-    entityType: "Lead",
-    entityId: params.leadId,
-    details: { phone: params.phone, template: params.templateId },
-  });
-
-  revalidatePath(`/leads/${params.leadId}`);
-  revalidatePath("/leads");
-  return { success: true };
-}
-
 export async function quickMoveLeadStage(
   leadId: string,
   newStatus: import("@prisma/client").LeadStatus
@@ -355,43 +323,4 @@ export async function quickMoveLeadStage(
   revalidatePath("/leads");
   return { success: true };
 }
-
-export async function syncLeadToZohoAction(
-  leadId: string
-): Promise<{ success: boolean; message: string }> {
-  const session = await auth();
-  if (!session?.user) return { success: false, message: "Unauthorized" };
-
-  const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-  if (!lead) return { success: false, message: "Lead not found" };
-
-  const result = await pushLeadToZoho({
-    id: lead.id,
-    customerName: lead.customerName,
-    phone: lead.phone,
-    email: lead.email,
-    productCategory: lead.productCategory,
-    budget: lead.budget ? Number(lead.budget) : null,
-    source: lead.source,
-    address: lead.address,
-  });
-
-  if (result.success) {
-    await logActivity({
-      userId: session.user.id,
-      action: "LEAD_SYNCED_TO_ZOHO",
-      entityType: "Lead",
-      entityId: leadId,
-      details: { zohoId: result.zohoId },
-    });
-  }
-
-  return {
-    success: result.success,
-    message: result.success
-      ? `Lead successfully synced to Zoho CRM! (Zoho ID: ${result.zohoId || "Created"})`
-      : result.message || "Failed to sync to Zoho CRM",
-  };
-}
-
 

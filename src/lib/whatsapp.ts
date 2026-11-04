@@ -1,9 +1,6 @@
 /**
- * WhatsApp & Omnichannel Communication Suite for Adreco CRM
- * Supports:
- * 1. Instant 1-click WhatsApp Web / Mobile deep links (zero cost, 100% reliable)
- * 2. Meta WhatsApp Cloud API (Graph API)
- * 3. Zoho WhatsApp integration support
+ * WhatsApp messages for clients: ready-made message templates and the one-tap WhatsApp link (wa.me), which needs no
+ * account or key. Sending straight from the CRM through the WhatsApp Business API is not built yet.
  */
 
 export interface WhatsAppTemplateData {
@@ -141,75 +138,3 @@ export function buildWhatsAppLink(phone: string, text: string): string {
   return `https://wa.me/${cleanPhone}?text=${encoded}`;
 }
 
-/**
- * Dispatch message via Meta WhatsApp Business Cloud API or configured Zoho WhatsApp webhook.
- * Returns true if sent successfully, or false with error info.
- */
-export async function sendWhatsAppViaApi(params: {
-  phone: string;
-  message: string;
-}): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const phone = formatWhatsAppPhone(params.phone);
-  if (!phone) return { success: false, error: "Invalid phone number" };
-
-  const metaToken = process.env.WHATSAPP_API_TOKEN;
-  const phoneId = process.env.WHATSAPP_PHONE_NUMBER_ID;
-
-  // 1. If Meta Cloud API is configured:
-  if (metaToken && phoneId) {
-    try {
-      const res = await fetch(`https://graph.facebook.com/v21.0/${phoneId}/messages`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${metaToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messaging_product: "whatsapp",
-          recipient_type: "individual",
-          to: phone,
-          type: "text",
-          text: { preview_url: true, body: params.message },
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) {
-        return { success: false, error: data?.error?.message || "WhatsApp API error" };
-      }
-      return { success: true, messageId: data.messages?.[0]?.id };
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, error: msg };
-    }
-  }
-
-  // 2. If Zoho Webhook / Zoho WhatsApp proxy is configured:
-  const zohoWebhookUrl = process.env.ZOHO_WHATSAPP_WEBHOOK_URL;
-  if (zohoWebhookUrl) {
-    try {
-      const res = await fetch(zohoWebhookUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipient: phone,
-          message: params.message,
-          source: "adreco_crm",
-          timestamp: new Date().toISOString(),
-        }),
-      });
-      if (res.ok) {
-        return { success: true };
-      }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      return { success: false, error: msg };
-    }
-  }
-
-  // If no server API token is configured, return fallback instruction
-  return {
-    success: false,
-    error: "WhatsApp API credentials not set in .env. Use Direct WhatsApp link for instant messaging.",
-  };
-}

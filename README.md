@@ -44,8 +44,8 @@ You need a PostgreSQL instance to run this. Easiest path is Docker:
 
 No Docker? Point `DATABASE_URL` in `.env` at any PostgreSQL 14+ instance instead (local install, or a
 free-tier hosted one) and skip `npm run db:up`. The database must use UTF-8: the Windows installer's
-default is not, and a database like that cannot save ₹, emoji or Hindi text (the Zoho Chat and WhatsApp
-messages fail). Create it with `CREATE DATABASE adreco_crm ENCODING 'UTF8' TEMPLATE template0;`.
+default is not, and a database like that cannot save ₹, emoji or Hindi text (logging a WhatsApp message
+on a lead fails). Create it with `CREATE DATABASE adreco_crm ENCODING 'UTF8' TEMPLATE template0;`.
 
 ## Other useful commands
 
@@ -102,7 +102,7 @@ with the amount in words.
 Accounts and security: failed sign-ins lock an account (and a network address) for 15 minutes;
 deactivating a user or changing their role takes effect within about a minute, not when their login
 expires; accounts created or reset by an administrator must choose their own password at first
-sign-in (users change it themselves under their name menu → Change password); the public Zoho
+sign-in (users change it themselves under their name menu → Change password); the public enquiry
 webhook refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
 
 > The lifecycle modules are in the `lifecycle_modules` migration, which also loads the default

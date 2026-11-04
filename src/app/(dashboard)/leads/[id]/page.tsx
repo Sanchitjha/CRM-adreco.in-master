@@ -41,8 +41,7 @@ import { SurveyStatusBadge } from "@/components/surveys/survey-status-badge";
 import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { SectionCard, Avatar, Badge, EmptyState } from "@/components/ui";
 import { AiLeadAdvisor } from "@/components/ai/ai-lead-advisor";
-import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
-import { ZohoSyncButton } from "@/components/leads/zoho-sync-button";
+import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 import { LeadContacts } from "@/components/leads/lead-contacts";
 import { analyzeLeadWithAi } from "@/lib/ai";
 
@@ -212,10 +211,9 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ZohoChatAction
+          <WhatsAppAction
             customerName={lead.customerName}
             phone={lead.phone}
-            email={lead.email}
             leadId={lead.id}
             productCategory={lead.productCategory}
             budget={lead.budget ? Number(lead.budget) : null}
@@ -223,7 +221,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             grandTotal={lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null}
             suggestedMessage={leadAiInsight.suggestedWhatsAppMessage}
             variant="button"
-            label="Zoho Chat"
+            label="WhatsApp"
           />
           <StatusBadge status={lead.status} />
           {lead.currentDepartment && (
@@ -502,10 +500,6 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
                     <AssignControl leadId={lead.id} currentAssignedToId={lead.assignedToId} salesUsers={salesUsers} />
                   </div>
                 )}
-                <div className="border-t border-[var(--border)] pt-4">
-                  <p className="label mb-2">Zoho CRM Sync</p>
-                  <ZohoSyncButton leadId={lead.id} />
-                </div>
               </div>
             </SectionCard>
           )}

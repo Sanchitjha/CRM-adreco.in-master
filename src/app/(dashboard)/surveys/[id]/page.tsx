@@ -7,7 +7,7 @@ import { canAccessSurveys, canAccessQuotations } from "@/lib/rbac";
 import { SectionCard, Avatar, Badge } from "@/components/ui";
 import { SurveyStatusBadge } from "@/components/surveys/survey-status-badge";
 import { SurveyStatusControl } from "@/components/surveys/survey-status-control";
-import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
+import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 
 function Row({ label, value, unit }: { label: string; value: number | string | null; unit?: string }) {
   if (value === null || value === "" || value === undefined) return null;
@@ -61,15 +61,14 @@ export default async function SurveyDetailPage({ params }: { params: Promise<{ i
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <ZohoChatAction
+          <WhatsAppAction
             customerName={survey.lead.customerName}
             phone={survey.lead.phone}
-            email={survey.lead.email}
             leadId={survey.lead.id}
             productCategory={survey.lead.productCategory}
             surveyApplication={survey.application}
             variant="button"
-            label="Message on Zoho Chat"
+            label="Message on WhatsApp"
           />
           <SurveyStatusBadge status={survey.status} />
           <Link href={`/leads/${survey.leadId}`} className="btn btn-secondary btn-sm">

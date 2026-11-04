@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Sparkles, ArrowRight, MessageSquare, AlertTriangle, CheckCircle2, TrendingUp, RefreshCw } from "lucide-react";
 import { type LeadAiInsight } from "@/lib/ai";
-import { ZohoChatAction } from "@/components/zoho/zoho-chat-modal";
+import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 
 export function AiLeadAdvisor({
   customerName,
@@ -105,16 +105,16 @@ export function AiLeadAdvisor({
         </div>
       </div>
 
-      {/* 1-Click AI Drafted Zoho Chat Message */}
+      {/* 1-Click AI drafted WhatsApp message */}
       <div className="mt-4 rounded-xl border border-red-200/80 bg-white p-3.5 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <MessageSquare className="size-4 fill-red-500/20 text-red-600" />
             <span className="text-xs font-semibold text-slate-800">
-              AI-Generated Zoho SalesIQ Pitch
+              AI-drafted WhatsApp message
             </span>
           </div>
-          <ZohoChatAction
+          <WhatsAppAction
             customerName={customerName}
             phone={phone}
             leadId={leadId}
@@ -124,7 +124,7 @@ export function AiLeadAdvisor({
             grandTotal={grandTotal}
             suggestedMessage={currentInsight.suggestedWhatsAppMessage}
             variant="small"
-            label="Send on Zoho Chat"
+            label="Send on WhatsApp"
           />
         </div>
         <p className="mt-2 text-xs italic text-slate-600 font-mono bg-slate-50 p-2.5 rounded-lg border border-slate-100">
