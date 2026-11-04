@@ -17,7 +17,7 @@ import {
   updateCompanyProfile,
   updateSlaPolicies,
 } from "./actions";
-import { saveAdminWhatsApp, sendDailyUpdateNow } from "./daily-update-actions";
+import { saveAdminDailyUpdate, sendDailyUpdateNow } from "./daily-update-actions";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -30,12 +30,13 @@ export default async function SettingsPage() {
     prisma.department.findMany({ orderBy: { sortOrder: "asc" } }),
     prisma.user.findMany({
       where: { role: "ADMIN", active: true },
-      select: { id: true, name: true, email: true, whatsappNumber: true },
+      select: { id: true, name: true, email: true, whatsappNumber: true, receivesDailyUpdate: true },
       orderBy: { name: "asc" },
     }),
   ]);
   const mailReady = isMailConfigured();
   const whatsappReady = isWhatsAppCloudConfigured();
+  const receiving = admins.filter((a) => a.receivesDailyUpdate).length;
 
   return (
     <div className="space-y-6">
@@ -92,7 +93,7 @@ export default async function SettingsPage() {
             <li className="flex items-center gap-2">
               <Badge tone={mailReady ? "success" : "warning"}>{mailReady ? "Email ready" : "Email not set up"}</Badge>
               {mailReady
-                ? "Sent to each administrator's email address."
+                ? "Sent to the email address of each administrator who has it switched on."
                 : "Add the mail server settings to switch it on (see DEPLOYMENT.md)."}
             </li>
             <li className="flex items-center gap-2">
@@ -100,30 +101,50 @@ export default async function SettingsPage() {
                 {whatsappReady ? "WhatsApp ready" : "WhatsApp not set up"}
               </Badge>
               {whatsappReady
-                ? "Sent to each administrator's WhatsApp number below."
+                ? "Sent to the WhatsApp number of each administrator who has it switched on and a number saved."
                 : "Needs the company's WhatsApp Business API settings (see DEPLOYMENT.md). Until then it comes by email and shows on the dashboard."}
             </li>
           </ul>
 
+          {receiving === 0 && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              No administrator is set to receive the daily update. Switch it on for at least one of them below.
+            </p>
+          )}
+
           <div className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
             {admins.map((admin) => (
               <div key={admin.id} className="px-4 py-3">
-                <p className="text-sm font-medium text-slate-800">{admin.name}</p>
-                <p className="mb-2 text-xs text-slate-400">{admin.email}</p>
+                <div className="mb-3 flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-slate-800">{admin.name}</p>
+                    <p className="truncate text-xs text-slate-400">{admin.email}</p>
+                  </div>
+                  <Badge tone={admin.receivesDailyUpdate ? "success" : "neutral"}>
+                    {admin.receivesDailyUpdate ? "Gets the update" : "Switched off"}
+                  </Badge>
+                </div>
                 <AutoForm
-                  action={saveAdminWhatsApp}
-                  submitLabel="Save number"
+                  action={saveAdminDailyUpdate}
+                  submitLabel="Save"
                   columns={1}
                   compact
                   fields={[
                     { kind: "hidden", name: "userId", value: admin.id },
+                    {
+                      kind: "checkbox",
+                      name: "receivesDailyUpdate",
+                      label: "Send this administrator the daily update",
+                      hint: "By email, and on WhatsApp when a number is saved. Switch it off for an administrator who only needs to sign in.",
+                      defaultChecked: admin.receivesDailyUpdate,
+                    },
                     {
                       name: "whatsappNumber",
                       label: "WhatsApp number",
                       kind: "tel",
                       defaultValue: admin.whatsappNumber ? `+${admin.whatsappNumber}` : "",
                       placeholder: "+91 98765 43210",
-                      hint: "With the country code. Leave empty to stop WhatsApp messages for this administrator.",
+                      hint: "With the country code. Leave empty if the update should not go to WhatsApp.",
                     },
                   ]}
                 />
