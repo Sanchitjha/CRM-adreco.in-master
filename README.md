@@ -71,8 +71,10 @@ configured, the route just skips sending for each user rather than failing.
 
 The same run also sends the administrators their **daily update**: what each person did the day before (from the
 activity record and the team chat), who did nothing, and what is overdue, by email and, when the company's WhatsApp
-Business API is set up and an administrator has saved a number under Settings, as a WhatsApp message. The dashboard
-shows the same thing live (*Team today*, and *Team activity* for today, yesterday and the last 7 days).
+Business API is set up and an administrator has saved a number under Settings, as a WhatsApp message. Each
+administrator has an on/off switch for it under Settings, so it can go to the people who should read it and not to
+everyone with an admin login. The dashboard shows the same thing live (*Team today*, and *Team activity* for today,
+yesterday and the last 7 days).
 
 ## Where things stand
 

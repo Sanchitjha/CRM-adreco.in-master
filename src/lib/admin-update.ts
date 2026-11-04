@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db";
+import { dailyUpdateRecipients } from "@/lib/admin-recipients";
 import { isMailConfigured, sendEmail } from "@/lib/mailer";
 import {
   renderReportHtml,
@@ -29,9 +30,10 @@ function short(error: unknown): string {
 }
 
 /**
- * Sends the daily update to the administrators: an email, and a WhatsApp message to each admin who has a number
- * saved. Whichever of the two is not set up yet is skipped and mentioned in `notes`; one failing never stops the
- * other. `onlyUserId` sends it to one admin only, for the "send me a test" button.
+ * Sends the daily update to the administrators who have it switched on: an email, and a WhatsApp message to each
+ * one who has a number saved. Whichever of the two is not set up yet is skipped and mentioned in `notes`; one
+ * failing never stops the other. `onlyUserId` sends it to one admin only, whatever their switch says, for the
+ * "send me a test" button.
  */
 export async function sendAdminDailyUpdate(options: {
   kind: ReportKind;
@@ -39,11 +41,18 @@ export async function sendAdminDailyUpdate(options: {
   now?: Date;
 }): Promise<AdminUpdateResult> {
   const admins = await prisma.user.findMany({
-    where: { role: "ADMIN", active: true, ...(options.onlyUserId ? { id: options.onlyUserId } : {}) },
+    where: dailyUpdateRecipients(options.onlyUserId),
     select: { name: true, email: true, whatsappNumber: true },
   });
   const result: AdminUpdateResult = { recipients: admins.length, emailsSent: 0, whatsappSent: 0, notes: [] };
-  if (admins.length === 0) return result;
+  if (admins.length === 0) {
+    result.notes.push(
+      options.onlyUserId
+        ? "That administrator account is not available."
+        : "No administrator is set to receive the daily update (see Settings).",
+    );
+    return result;
+  }
 
   const mailReady = isMailConfigured();
   const whatsappReady = isWhatsAppCloudConfigured();

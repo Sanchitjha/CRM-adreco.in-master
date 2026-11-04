@@ -165,7 +165,10 @@ One mail server does all three. With Amazon SES in the same region as the stack 
 
 Every morning at 08:00 India time the CRM emails each administrator the team's update for the day before: what each
 person did, who did nothing, and what is overdue. It also shows on the dashboard (*Team today*, *Team activity*). If an
-administrator has saved a WhatsApp number under *Settings*, a short WhatsApp message goes there as well. This uses
+administrator has saved a WhatsApp number under *Settings*, a short WhatsApp message goes there as well. Each
+administrator has an on/off switch under *Settings, Daily update for administrators* (on by default); switch it off
+for an administrator who only needs to sign in, such as whoever looks after the system, so the update reaches only
+the people who should read it. This uses
 Meta's official WhatsApp Business API with one pre-approved template message a day to each administrator; nobody
 scans a QR code or links a personal WhatsApp to the CRM. Meta charges a small fee per message (check its current
 rate card; at the time of writing it is a fraction of a rupee). Setting it up takes Meta a few days, so start early:
@@ -190,8 +193,9 @@ rate card; at the time of writing it is a fraction of a rupee). Setting it up ta
    permanent access token with the `whatsapp_business_messaging` and `whatsapp_business_management` permissions. Put
    it in `WHATSAPP_ACCESS_TOKEN`. The phone number's id (WhatsApp Manager, API setup) goes in `WHATSAPP_PHONE_NUMBER_ID`.
    Treat the token like a password.
-6. In the CRM, *Settings, Daily update for administrators*: save each administrator's number, then press **Send me
-   today's update now** to check that the email and the WhatsApp message both arrive.
+6. In the CRM, *Settings, Daily update for administrators*: for each administrator, set the switch and save the
+   number, then press **Send me today's update now** (it goes to whoever presses it, whatever their switch says) to
+   check that the email and the WhatsApp message both arrive.
 
 Until step 5 is done the update comes by email and on the dashboard only; nothing breaks.
 

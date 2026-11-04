@@ -81,6 +81,9 @@ model User {
 
   /// WhatsApp number (digits with country code) that receives the daily update when this person is an admin.
   whatsappNumber String?
+  /// Whether this administrator is sent the daily update (email, and WhatsApp when a number is saved). On by
+  /// default; switched off for an administrator who only needs to sign in, such as whoever looks after the system.
+  receivesDailyUpdate Boolean @default(true)
 
   department Department? @relation(fields: [departmentId], references: [id])
 

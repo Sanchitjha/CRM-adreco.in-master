@@ -8,14 +8,20 @@ import type { ActionState } from "@/lib/action-state";
 import { sendAdminDailyUpdate } from "@/lib/admin-update";
 import { normalizeWhatsAppNumber } from "@/lib/whatsapp-cloud";
 
-/** Saves (or clears) the WhatsApp number that gets the daily update for one administrator. */
-export async function saveAdminWhatsApp(_prevState: ActionState, formData: FormData): Promise<ActionState> {
+/**
+ * Saves, for one administrator, whether they are sent the daily update and the WhatsApp number it goes to. Any
+ * administrator can do this for any other, so whoever sets the system up can enter the owner's number for them.
+ */
+export async function saveAdminDailyUpdate(_prevState: ActionState, formData: FormData): Promise<ActionState> {
   const session = await auth();
   if (!session?.user || session.user.role !== "ADMIN") return { error: "Only administrators can change this." };
 
   const userId = String(formData.get("userId") ?? "");
   const admin = await prisma.user.findFirst({ where: { id: userId, role: "ADMIN", active: true }, select: { id: true } });
   if (!admin) return { error: "That administrator was not found." };
+
+  // A ticked box is sent as "on"; an unticked one is not sent at all.
+  const receives = formData.get("receivesDailyUpdate") === "on";
 
   const raw = String(formData.get("whatsappNumber") ?? "").trim();
   let number: string | null = null;
@@ -26,17 +32,29 @@ export async function saveAdminWhatsApp(_prevState: ActionState, formData: FormD
     }
   }
 
-  await prisma.user.update({ where: { id: admin.id }, data: { whatsappNumber: number } });
+  await prisma.user.update({ where: { id: admin.id }, data: { whatsappNumber: number, receivesDailyUpdate: receives } });
   await logActivity({
     userId: session.user.id,
-    action: "DAILY_UPDATE_NUMBER_SAVED",
+    action: "DAILY_UPDATE_SETTINGS_SAVED",
     entityType: "User",
     entityId: admin.id,
-    details: { cleared: number === null },
+    details: { receives, hasNumber: number !== null },
   });
 
   revalidatePath("/settings");
-  return { message: number ? `Saved. The daily update will go to +${number}.` : "Removed. This administrator will not get the update on WhatsApp." };
+
+  if (!receives) {
+    return {
+      message: number
+        ? `Saved. This administrator will not get the daily update. The number +${number} is kept for when it is switched back on.`
+        : "Saved. This administrator will not get the daily update.",
+    };
+  }
+  return {
+    message: number
+      ? `Saved. The daily update goes to this administrator's email and to +${number} on WhatsApp.`
+      : "Saved. The daily update goes to this administrator's email. Add a WhatsApp number to send it there too.",
+  };
 }
 
 /** Sends today's update to the administrator who pressed the button, so email and WhatsApp can be checked. */
