@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Building2, ListChecks, Settings, Timer, Waypoints } from "lucide-react";
+import { Building2, ListChecks, Mail, Settings, Timer, Waypoints } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canView } from "@/lib/rbac";
@@ -8,6 +8,8 @@ import { TICKET_PRIORITY } from "@/lib/statuses";
 import { PageHeader, SectionCard, Badge } from "@/components/ui";
 import { AutoForm } from "@/components/auto-form";
 import { ActionButton } from "@/components/action-forms";
+import { isMailConfigured } from "@/lib/mailer";
+import { isWhatsAppCloudConfigured } from "@/lib/whatsapp-cloud";
 import {
   addSettingOption,
   deleteSettingOption,
@@ -15,17 +17,25 @@ import {
   updateCompanyProfile,
   updateSlaPolicies,
 } from "./actions";
+import { saveAdminWhatsApp, sendDailyUpdateNow } from "./daily-update-actions";
 
 export default async function SettingsPage() {
   const session = await auth();
   if (!session?.user || !canView(session.user.role, "settings")) redirect("/");
 
-  const [profile, sla, options, departments] = await Promise.all([
+  const [profile, sla, options, departments, admins] = await Promise.all([
     getCompanyProfile(),
     getSlaPolicies(),
     prisma.settingOption.findMany({ orderBy: [{ sortOrder: "asc" }, { value: "asc" }] }),
     prisma.department.findMany({ orderBy: { sortOrder: "asc" } }),
+    prisma.user.findMany({
+      where: { role: "ADMIN", active: true },
+      select: { id: true, name: true, email: true, whatsappNumber: true },
+      orderBy: { name: "asc" },
+    }),
   ]);
+  const mailReady = isMailConfigured();
+  const whatsappReady = isWhatsAppCloudConfigured();
 
   return (
     <div className="space-y-6">
@@ -70,6 +80,70 @@ export default async function SettingsPage() {
             },
           ]}
         />
+      </SectionCard>
+
+      <SectionCard
+        title="Daily update for administrators"
+        description="Every morning at 8:00 (India time): what each person did yesterday, who did nothing, and what is overdue."
+        icon={Mail}
+      >
+        <div className="space-y-5">
+          <ul className="space-y-1.5 text-sm text-slate-600">
+            <li className="flex items-center gap-2">
+              <Badge tone={mailReady ? "success" : "warning"}>{mailReady ? "Email ready" : "Email not set up"}</Badge>
+              {mailReady
+                ? "Sent to each administrator's email address."
+                : "Add the mail server settings to switch it on (see DEPLOYMENT.md)."}
+            </li>
+            <li className="flex items-center gap-2">
+              <Badge tone={whatsappReady ? "success" : "warning"}>
+                {whatsappReady ? "WhatsApp ready" : "WhatsApp not set up"}
+              </Badge>
+              {whatsappReady
+                ? "Sent to each administrator's WhatsApp number below."
+                : "Needs the company's WhatsApp Business API settings (see DEPLOYMENT.md). Until then it comes by email and shows on the dashboard."}
+            </li>
+          </ul>
+
+          <div className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)]">
+            {admins.map((admin) => (
+              <div key={admin.id} className="px-4 py-3">
+                <p className="text-sm font-medium text-slate-800">{admin.name}</p>
+                <p className="mb-2 text-xs text-slate-400">{admin.email}</p>
+                <AutoForm
+                  action={saveAdminWhatsApp}
+                  submitLabel="Save number"
+                  columns={1}
+                  compact
+                  fields={[
+                    { kind: "hidden", name: "userId", value: admin.id },
+                    {
+                      name: "whatsappNumber",
+                      label: "WhatsApp number",
+                      kind: "tel",
+                      defaultValue: admin.whatsappNumber ? `+${admin.whatsappNumber}` : "",
+                      placeholder: "+91 98765 43210",
+                      hint: "With the country code. Leave empty to stop WhatsApp messages for this administrator.",
+                    },
+                  ]}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div>
+            <ActionButton
+              action={sendDailyUpdateNow}
+              hidden={{}}
+              label="Send me today's update now"
+              pendingLabel="Sending…"
+              variant="primary"
+            />
+            <p className="mt-1.5 text-xs text-slate-400">
+              Sends the update to your own email and WhatsApp number only, so you can check that it arrives.
+            </p>
+          </div>
+        </div>
       </SectionCard>
 
       <SectionCard

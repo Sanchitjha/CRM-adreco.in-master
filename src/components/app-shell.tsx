@@ -6,8 +6,9 @@ import Link from "next/link";
 import type { Role } from "@prisma/client";
 import { signOut } from "next-auth/react";
 import { formatDistanceToNow } from "date-fns";
-import { Menu, Search, Bell, LogOut, ChevronDown, X, Inbox, KeyRound } from "lucide-react";
+import { Menu, Search, Bell, LogOut, ChevronDown, X, Inbox, KeyRound, MessagesSquare } from "lucide-react";
 import { SidebarNav } from "@/components/sidebar";
+import { ChatUnreadBadge } from "@/components/chat/chat-unread-badge";
 import { Avatar } from "@/components/ui";
 import { cn, initials } from "@/lib/utils";
 
@@ -249,6 +250,14 @@ export function AppShell({
               className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 sm:hidden"
             >
               <Search className="size-5" />
+            </Link>
+            <Link
+              href="/chat"
+              aria-label="Team chat"
+              className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+            >
+              <MessagesSquare className="size-[18px]" />
+              <ChatUnreadBadge className="absolute -right-0.5 -top-0.5 ring-2 ring-white" />
             </Link>
             <NotificationsMenu notifications={notifications} unreadCount={unreadCount} />
             <div className="mx-1 hidden h-6 w-px bg-slate-200 sm:block" />

@@ -21,6 +21,7 @@ import { endOfTodayIst, istHour } from "@/lib/dates";
 import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 import { LifecycleStatsRow } from "@/components/lifecycle-stats-row";
 import { lifecycleStats } from "@/lib/lifecycle-stats";
+import { TeamToday } from "@/components/admin/team-today";
 
 function greeting(): string {
   const h = istHour();
@@ -218,6 +219,8 @@ export default async function DashboardHome() {
       </div>
 
       <LifecycleStatsRow stats={stats} />
+
+      {role === "ADMIN" && <TeamToday />}
 
       <div className="grid gap-5 lg:grid-cols-3">
         <SectionCard title="Sales funnel" description="Leads by stage" icon={Waypoints} className="lg:col-span-2">

@@ -51,6 +51,41 @@ export function endOfTodayIst(now: Date = new Date()): Date {
   return new Date(today(now).getTime() + DAY_MS - IST_OFFSET_MS - 1);
 }
 
+/** The first instant of today's Indian calendar day. */
+export function startOfTodayIst(now: Date = new Date()): Date {
+  return new Date(today(now).getTime() - IST_OFFSET_MS);
+}
+
+/** The first instant of the Indian calendar day `daysAgo` days before today (0 is today, 1 is yesterday). */
+export function startOfDayIstAgo(daysAgo: number, now: Date = new Date()): Date {
+  return new Date(startOfTodayIst(now).getTime() - daysAgo * DAY_MS);
+}
+
+/** Time of day in India, e.g. "5:42 pm". */
+export function formatTime(value: Date | string | null | undefined): string {
+  if (!value) return "—";
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "—";
+  return d.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: TZ });
+}
+
+/** A date for headings, e.g. "Wed, 5 Nov 2026". */
+export function formatLongDate(value: Date | string | null | undefined): string {
+  if (!value) return "—";
+  const d = typeof value === "string" ? new Date(value) : value;
+  if (Number.isNaN(d.getTime())) return "—";
+  // Built from parts so the punctuation does not depend on the locale data of the machine it runs on.
+  const parts = new Intl.DateTimeFormat("en-IN", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    timeZone: TZ,
+  }).formatToParts(d);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((p) => p.type === type)?.value ?? "";
+  return `${part("weekday")}, ${part("day")} ${part("month")} ${part("year")}`;
+}
+
 /** Hour of the day (0–23) in India, for greetings. */
 export function istHour(now: Date = new Date()): number {
   return Number(new Intl.DateTimeFormat("en-GB", { hour: "numeric", hourCycle: "h23", timeZone: TZ }).format(now));

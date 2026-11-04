@@ -133,18 +133,73 @@ A demo copy is a separate environment from the one that will hold real customers
 template names its cluster, repository and log group `adreco-crm`, so one AWS account and region holds one stack. To run
 a demo and the real CRM side by side, put them in different regions or accounts, or delete the demo stack first.
 
-## 5. Optional settings: email, AI, enquiry webhook
+## 5. Optional settings: email, the WhatsApp update, AI, enquiry webhook
 
-The CRM works without them (the WhatsApp buttons open WhatsApp and need no keys). To switch some on, make a text file of
-`NAME=value` lines (the names are in [`.env.example`](.env.example): `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`,
-`SMTP_FROM`, `GEMINI_API_KEY`, `ZOHO_WEBHOOK_SECRET` and so on). Upload it to the documents bucket
-(the `DocumentsBucketName` output) as `config/app.env`, then update the stack with `EnvFileKey` set to
-`config/app.env`. After later edits to the file, run *Deploy to AWS* so new containers read it. The file lives in
+The CRM runs without any of them. Team chat needs nothing at all: it works as soon as people sign in. To switch the
+rest on, make a text file of `NAME=value` lines (the names are in [`.env.example`](.env.example)). Upload it to the
+documents bucket (the `DocumentsBucketName` output) as `config/app.env`, then update the stack with `EnvFileKey` set
+to `config/app.env`. After later edits to the file, run *Deploy to AWS* so new containers read it. The file lives in
 a private bucket, and the running app cannot read it.
 
-The enquiry webhook (its name is historical; any web form or system can use it) is
-`POST https://crm.adreco.in/api/integrations/zoho/webhook` with header `x-zoho-secret`. It refuses every call until
-`ZOHO_WEBHOOK_SECRET` is set.
+### 5a. Email: emails to leads, the administrators' daily update, the morning digest
+
+One mail server does all three. With Amazon SES in the same region as the stack (Mumbai):
+
+1. **SES, Verified identities, Create identity, Domain**: enter `adreco.in` and keep *Easy DKIM* on. SES shows three
+   CNAME records; add them where the domain's DNS lives (GoDaddy). Within minutes to hours the identity says
+   *Verified*. These records do not disturb the company's normal mailboxes.
+2. **SES, Account dashboard, Request production access.** Until it is granted (usually within a day) SES only sends to
+   addresses you have verified, which is enough to test with your own. Describe the use honestly: one-to-one emails
+   to people who asked for a quote, and internal reports. No newsletters.
+3. **SES, SMTP settings, Create SMTP credentials.** Put the user name and password in `SMTP_USER` and `SMTP_PASSWORD`,
+   and set `SMTP_HOST=email-smtp.ap-south-1.amazonaws.com` and `SMTP_PORT=587`.
+4. **`SMTP_FROM`** is what customers see, for example `Adreco Engineering <sales@adreco.in>`; any address on the
+   verified domain works. Each email shows the employee's name in front of it and is signed by them, and replies go to
+   the employee's own address. If you would rather each email came from the employee's own address, set
+   `MAIL_FROM_EMPLOYEE=true` (it only applies to people whose sign-in address is on the same domain). To keep a copy of
+   every email employees send, set `MAIL_ARCHIVE_BCC` to a mailbox the company reads.
+5. **Check it:** *Settings, Daily update for administrators, Send me today's update now.* Then open a lead and send
+   yourself an email.
+
+### 5b. The daily update on WhatsApp (administrators)
+
+Every morning at 08:00 India time the CRM emails each administrator the team's update for the day before: what each
+person did, who did nothing, and what is overdue. It also shows on the dashboard (*Team today*, *Team activity*). If an
+administrator has saved a WhatsApp number under *Settings*, a short WhatsApp message goes there as well. This uses
+Meta's official WhatsApp Business API with one pre-approved template message a day to each administrator; nobody
+scans a QR code or links a personal WhatsApp to the CRM. Meta charges a small fee per message (check its current
+rate card; at the time of writing it is a fraction of a rupee). Setting it up takes Meta a few days, so start early:
+
+1. At business.facebook.com create the company's Meta Business account and start **business verification**
+   (legal name, address and a registration document). You can begin testing before it finishes.
+2. At developers.facebook.com create an app of type *Business* and add the **WhatsApp** product.
+3. In WhatsApp Manager add the phone number the CRM will send from. It must **not be on WhatsApp already** and must be
+   different from the administrators' own numbers; Meta verifies it by SMS or a call. To try things first, Meta's free
+   test number can send to up to five recipient numbers you verify.
+4. Create the **message template**: name `daily_crm_update`, category *Utility*, language *English*, body exactly:
+
+   ```
+   Adreco CRM update for {{1}}. New leads: {{2}}. Follow-ups logged: {{3}}. Overdue follow-ups: {{4}}. Overdue tasks: {{5}}. No activity from: {{6}}. Full report: {{7}} Sent by Adreco CRM.
+   ```
+
+   Keep the wording as it is: Meta refuses a template that starts or ends with a `{{value}}`, which is why it ends with
+   "Sent by Adreco CRM." Meta asks for an example of each value, for example: `Wed, 4 Nov 2026`, `3`, `12`, `5`, `1`,
+   `Ravi Nair`, `https://crm.adreco.in/admin/team`. Approval takes minutes to a day. If you use another name or
+   language code, set `WHATSAPP_REPORT_TEMPLATE` and `WHATSAPP_REPORT_LANGUAGE` to match.
+5. In Business settings create a **system user**, give it the WhatsApp account with full control, and generate a
+   permanent access token with the `whatsapp_business_messaging` and `whatsapp_business_management` permissions. Put
+   it in `WHATSAPP_ACCESS_TOKEN`. The phone number's id (WhatsApp Manager, API setup) goes in `WHATSAPP_PHONE_NUMBER_ID`.
+   Treat the token like a password.
+6. In the CRM, *Settings, Daily update for administrators*: save each administrator's number, then press **Send me
+   today's update now** to check that the email and the WhatsApp message both arrive.
+
+Until step 5 is done the update comes by email and on the dashboard only; nothing breaks.
+
+### 5c. AI advice and the enquiry webhook
+
+`GEMINI_API_KEY` (or `OPENAI_API_KEY`) switches on generated advice and message drafts. The enquiry webhook (its name is
+historical; any web form or system can use it) is `POST https://crm.adreco.in/api/integrations/zoho/webhook` with
+header `x-zoho-secret`. It refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
 
 ## 6. Everyday operations
 
@@ -155,7 +210,8 @@ The enquiry webhook (its name is historical; any web form or system can use it) 
 - **Logs:** CloudWatch, Log groups, `/adreco-crm` (`app` and `migrate` streams).
 - **Change capacity:** update `DesiredCount` or `TaskSize`. Setting `DesiredCount` to 0 stops the containers, but the
   database and load balancer keep costing.
-- **Daily digest:** a schedule calls the digest at 08:00 India time. It needs the email settings in section 5.
+- **Daily digest:** a schedule calls the digest at 08:00 India time. It sends each person what is due to them and
+  sends the administrators the team's update for the day before (section 5). Both need the email settings in 5a.
 - **Backups:** RDS keeps daily snapshots and transaction logs for 14 days, so you can restore to any minute in that
   window. **Do one test restore** before relying on it. S3 versioning keeps earlier versions of documents. The
   containers hold no data. For a portable copy, `pg_dump` from a machine that can reach the database.

@@ -19,6 +19,9 @@ import {
   Users,
   BarChart3,
   Settings,
+  MessagesSquare,
+  Eye,
+  UsersRound,
   type LucideIcon,
 } from "lucide-react";
 
@@ -41,7 +44,10 @@ const ADMIN_ONLY: Role[] = ["ADMIN"];
 export const NAV_GROUPS: NavGroup[] = [
   {
     title: "Overview",
-    items: [{ label: "Dashboard", href: "/", icon: LayoutDashboard, roles: ALL_ROLES }],
+    items: [
+      { label: "Dashboard", href: "/", icon: LayoutDashboard, roles: ALL_ROLES },
+      { label: "Team chat", href: "/chat", icon: MessagesSquare, roles: ALL_ROLES },
+    ],
   },
   {
     title: "Pipeline",
@@ -90,6 +96,8 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Users", href: "/admin/users", icon: Users, roles: ADMIN_ONLY },
       { label: "Reports", href: "/admin/reports", icon: BarChart3, roles: ADMIN_ONLY },
+      { label: "Team activity", href: "/admin/team", icon: UsersRound, roles: ADMIN_ONLY },
+      { label: "All chats", href: "/admin/chats", icon: Eye, roles: ADMIN_ONLY },
       { label: "Settings", href: "/settings", icon: Settings, roles: MODULE_ACCESS.settings.view },
     ],
   },
