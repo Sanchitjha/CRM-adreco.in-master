@@ -16,7 +16,7 @@ Metadata:
       - Label: { default: Application }
         Parameters: [DesiredCount, TaskSize, ImageTag, EnvFileKey]
       - Label: { default: Database }
-        Parameters: [DbEngineVersion, DbInstanceClass, DbMultiAz, DbAllocatedStorage]
+        Parameters: [DbEngineVersion, DbInstanceClass, DbMultiAz, DbAllocatedStorage, DbDeletionProtection]
       - Label: { default: Alerts and deployments }
         Parameters: [AlarmEmail, GitHubRepo, CreateGitHubOidcProvider]
 
@@ -60,7 +60,7 @@ Parameters:
     Default: ""
     AllowedPattern: ^(config/[^\s]+)?$
     Description: >-
-      Optional. Path inside the documents bucket of a .env file holding your email, AI, WhatsApp and Zoho settings.
+      Optional. Path inside the documents bucket of a .env file holding your email, AI and enquiry-webhook settings.
       It must start with config/, for example config/app.env. Leave empty at first.
   DbEngineVersion:
     Type: String
@@ -82,6 +82,13 @@ Parameters:
     MinValue: 20
     MaxValue: 1000
     Description: Database storage in GB.
+  DbDeletionProtection:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Refuse to delete the database from the console or by deleting the stack. Create the stack with false, so that a
+      failed first attempt can roll back cleanly, then update the stack to true once the CRM is live.
   AlarmEmail:
     Type: String
     Default: ""
@@ -197,7 +204,7 @@ Resources:
       BackupRetentionPeriod: 14
       PreferredBackupWindow: "21:00-22:00"
       PreferredMaintenanceWindow: "sun:22:00-sun:23:00"
-      DeletionProtection: true
+      DeletionProtection: !Ref DbDeletionProtection
       CopyTagsToSnapshot: true
       AutoMinorVersionUpgrade: true
 
@@ -261,12 +268,13 @@ Resources:
               Bool: { "aws:SecureTransport": "false" }
 
   # ------------------------------------------------------------------ Images
+  # Images are rebuilt from GitHub by the deploy workflow, so the repository goes with the stack. Keeping it would make a
+  # second attempt after a failed first one stop on "repository already exists".
   Repository:
     Type: AWS::ECR::Repository
-    DeletionPolicy: Retain
-    UpdateReplacePolicy: Retain
     Properties:
       RepositoryName: adreco-crm
+      EmptyOnDelete: true
       ImageScanningConfiguration:
         ScanOnPush: true
       LifecyclePolicy:

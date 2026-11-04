@@ -57,6 +57,8 @@ You can do all of these before anything is built.
    - `VpcId`: the default VPC. `SubnetIds`: pick two or more in different zones (the default VPC's are public, as needed).
    - `DesiredCount`: leave at **0** for now.
    - `DbMultiAz`: `true` for production (a standby database, about US$13 more a month), `false` while testing.
+   - `DbDeletionProtection`: leave at `false` for the first creation, so that a failed attempt can roll back cleanly.
+     Update the stack to `true` as soon as the CRM is live (step 4.4).
    - `DbEngineVersion`: leave the default (PostgreSQL 16) unless CloudFormation says it is unavailable in your region;
      then pick another 16.x from the RDS *Create database* page.
    - `AlarmEmail`: who is told when the CRM turns unhealthy or the database runs low on space.
@@ -66,10 +68,25 @@ You can do all of these before anything is built.
 4. **DNS.** With Route 53 the record is created for you. Otherwise add a CNAME for `crm` pointing at the
    `LoadBalancerDnsName` output.
 
-The stack creates the network rules, the database (private, encrypted, backed up for 14 days, deletion-protected),
-the document bucket, the image repository, the cluster, the load balancer, generated secrets (nobody types the
+The stack creates the network rules, the database (private, encrypted, backed up for 14 days; deletion-protected once
+you switch that on after go-live), the document bucket, the image repository, the cluster, the load balancer, generated secrets (nobody types the
 database password or the login-signing key), the daily-digest schedule, alarms, and a role that lets GitHub deploy
 without stored passwords.
+
+### 3a. If the stack fails to create
+
+CloudFormation rolls everything back by itself. Read the **Events** tab for the first red line, fix the cause, and
+create the stack again under the same name (the stack must be fully deleted first).
+
+- *This account currently does not support creating load balancers*: a brand-new AWS account can be blocked for a few
+  hours. Wait, or ask AWS Support (Support Center, Create case) to enable it.
+- A database error about the backup retention period or a free-tier limit: the account is on the **Free** plan. Upgrade it
+  (Billing, Account plan, Upgrade) and try again.
+- *Cannot find version 16.12*: set `DbEngineVersion` to another 16.x offered on the RDS *Create database* page.
+- *Unable to assume the service linked role*: in CloudShell run
+  `aws iam create-service-linked-role --aws-service-name ecs.amazonaws.com`, then try again.
+- *The certificate must be in ISSUED status*: wait for the certificate in Certificate Manager to say Issued, in the same
+  region as the stack.
 
 ## 4. First deployment
 
@@ -94,7 +111,8 @@ without stored passwords.
    known password.
 4. **Start the containers.** *CloudFormation*, the stack, Update, *Use existing template*, set **`DesiredCount` to 2**.
    When the update finishes, open `https://crm.adreco.in`, sign in, choose your own password, and create the real
-   users under **Users** (each gets a temporary password and must change it at first sign-in).
+   users under **Users** (each gets a temporary password and must change it at first sign-in). Then update the stack
+   once more with **`DbDeletionProtection` set to `true`**.
 
 ## 4a. A demo copy with dummy data
 
@@ -115,17 +133,18 @@ A demo copy is a separate environment from the one that will hold real customers
 template names its cluster, repository and log group `adreco-crm`, so one AWS account and region holds one stack. To run
 a demo and the real CRM side by side, put them in different regions or accounts, or delete the demo stack first.
 
-## 5. Optional settings: email, AI, WhatsApp, Zoho
+## 5. Optional settings: email, AI, enquiry webhook
 
-The CRM works without them (click-to-chat WhatsApp needs no keys). To switch some on, make a text file of
+The CRM works without them (the WhatsApp buttons open WhatsApp and need no keys). To switch some on, make a text file of
 `NAME=value` lines (the names are in [`.env.example`](.env.example): `SMTP_HOST`, `SMTP_USER`, `SMTP_PASSWORD`,
-`SMTP_FROM`, `GEMINI_API_KEY`, `WHATSAPP_API_TOKEN`, `ZOHO_WEBHOOK_SECRET` and so on). Upload it to the documents bucket
+`SMTP_FROM`, `GEMINI_API_KEY`, `ZOHO_WEBHOOK_SECRET` and so on). Upload it to the documents bucket
 (the `DocumentsBucketName` output) as `config/app.env`, then update the stack with `EnvFileKey` set to
 `config/app.env`. After later edits to the file, run *Deploy to AWS* so new containers read it. The file lives in
 a private bucket, and the running app cannot read it.
 
-The Zoho leads webhook is `POST https://crm.adreco.in/api/integrations/zoho/webhook` with header `x-zoho-secret`.
-It refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
+The enquiry webhook (its name is historical; any web form or system can use it) is
+`POST https://crm.adreco.in/api/integrations/zoho/webhook` with header `x-zoho-secret`. It refuses every call until
+`ZOHO_WEBHOOK_SECRET` is set.
 
 ## 6. Everyday operations
 
@@ -140,7 +159,9 @@ It refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
 - **Backups:** RDS keeps daily snapshots and transaction logs for 14 days, so you can restore to any minute in that
   window. **Do one test restore** before relying on it. S3 versioning keeps earlier versions of documents. The
   containers hold no data. For a portable copy, `pg_dump` from a machine that can reach the database.
-- **Deleting the stack** keeps the database snapshot, the document bucket and the image repository on purpose.
+- **Deleting the stack** keeps the final database snapshot and the document bucket on purpose. The image repository is
+  deleted with its images, which *Deploy to AWS* rebuilds. Turn `DbDeletionProtection` back to `false` first, or the
+  database blocks the deletion.
 
 ## 7. Environment variables
 
@@ -180,7 +201,7 @@ Already enforced by the application:
   and each user's last sign-in time is recorded.
 
 Set up by the stack (shape B): the database is private, reachable only from the containers, encrypted, and
-deletion-protected; the document bucket is private, encrypted, versioned and HTTPS-only; the running app can only read
+deletion-protected once you set `DbDeletionProtection` to `true` (step 4.4); the document bucket is private, encrypted, versioned and HTTPS-only; the running app can only read
 and write customer documents; passwords and keys are generated into Secrets Manager; the load balancer serves HTTPS
 only (TLS 1.2 and up) and redirects plain HTTP; GitHub deploys through a role that only trusts the `main` branch.
 
@@ -204,5 +225,5 @@ runs on it in CI. The deploy workflow is valid YAML.
 
 **Not verified, because it needs an AWS account:** the template actually creating its resources, ECS and load-balancer
 behaviour, the database connection settings against RDS, S3 uploads from the browser (CORS and signed links), SES
-delivery, the scheduled digest, the deploy workflow end to end, and live calls to Gemini, WhatsApp and Zoho. The first
+delivery, the scheduled digest, the deploy workflow end to end, and live calls to Gemini. The first
 deployment is where these get proven, so plan to watch it and expect small fixes.
