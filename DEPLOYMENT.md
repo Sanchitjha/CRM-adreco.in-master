@@ -199,11 +199,50 @@ rate card; at the time of writing it is a fraction of a rupee). Setting it up ta
 
 Until step 5 is done the update comes by email and on the dashboard only; nothing breaks.
 
-### 5c. AI advice and the enquiry webhook
+### 5c. AI advice on leads, and the enquiry webhook
 
-`GEMINI_API_KEY` (or `OPENAI_API_KEY`) switches on generated advice and message drafts. The enquiry webhook (its name is
-historical; any web form or system can use it) is `POST https://crm.adreco.in/api/integrations/zoho/webhook` with
-header `x-zoho-secret`. It refuses every call until `ZOHO_WEBHOOK_SECRET` is set.
+**What it does.** The card at the top of a lead shows a score, a short assessment, a next step and a WhatsApp message
+draft. With no key it comes from the CRM's own rules: nothing leaves the CRM and it costs nothing. With a key an AI
+model writes it instead. Either way the CRM works, so this can wait until after go-live.
+
+**What is sent.** The lead's stage, product category and budget, how long ago it was created and last followed up,
+whether a site survey and a quotation exist, and the requirement notes with email addresses, phone numbers and links
+removed (and cut to 600 characters). **Never** the customer's name, phone number or email address: the model writes the
+message with a placeholder and the CRM puts the name in afterwards. A name typed inside the free-text notes can still
+go along (the customer's own full name is replaced). Won and lost leads are not sent at all. Tell the client this
+before switching it on.
+
+**How often.** The answer is saved for each lead and asked for again only when what the model is told changes (for
+example a follow-up is logged, so the number of days changes) or after a day. A **Refresh advice** button on the lead
+asks again at once. If the AI does not answer within 20 seconds, or says no, the lead page shows the built-in advice with
+a short note, and the CRM leaves the AI alone for a minute (five after a refused key). Each answer costs a fraction of a
+rupee at the prices checked in November 2026; the spending limit in step 2 caps it regardless.
+
+**Setting up Gemini (recommended):**
+
+1. At aistudio.google.com/apikey, signed in with a company Google account, create an API key in a Google Cloud project
+   used only for the CRM.
+2. Put the project on the **paid** tier: in AI Studio, *Set up billing* for that project and add prepaid credit (the
+   minimum is US$5; when the balance reaches zero the key stops working until it is topped up). Google says content sent
+   on the free tier may be used to improve its products and content sent on the paid tier is not, so do not use the
+   free tier for customer data. On the *Spend* page use *Edit spend cap* to set a monthly limit.
+3. Restrict the key (*Restrict to Gemini API only*); Google rejects unrestricted keys.
+4. Add `GEMINI_API_KEY=<the key>` to `config/app.env` (section 5, above), then run *Deploy to AWS* so the containers
+   read it. Never paste the key into chat, an email or a ticket, and never commit it.
+5. In the CRM open *Settings, AI advice on leads* and press **Test AI now**. It asks the AI about a made-up lead and
+   says either that it works, with the model and the time taken, or why not (a refused key, an empty balance, a retired
+   model). The key itself is never shown.
+
+`GEMINI_MODEL` is optional (default `gemini-3.6-flash`). Providers retire models from time to time: if the test says the
+model was not found, set `GEMINI_MODEL` to a current model name from Google's model list, run *Deploy to AWS*, and test
+again. No code change is needed.
+
+**OpenAI instead.** Set `OPENAI_API_KEY` (and optionally `OPENAI_MODEL`, default `gpt-6-luna`) the same way; the test
+button works the same. If both keys are set, Gemini is used.
+
+**The enquiry webhook.** Its name is historical; any web form or system can use it. It is
+`POST https://crm.adreco.in/api/integrations/zoho/webhook` with header `x-zoho-secret`, and it refuses every call until
+`ZOHO_WEBHOOK_SECRET` is set.
 
 ## 6. Everyday operations
 

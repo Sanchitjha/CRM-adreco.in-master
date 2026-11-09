@@ -4,8 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+  url      = env("DATABASE_URL")
 }
 
 enum Role {
@@ -194,6 +193,7 @@ model Lead {
 
   chatChannel ChatChannel?
   emails      LeadEmail[]
+  aiAdvice    LeadAiAdvice?
 
   @@index([status])
   @@index([assignedToId])
@@ -481,6 +481,21 @@ model LeadEmail {
 
   @@index([leadId, createdAt])
   @@index([sentById, createdAt])
+}
+
+/// What the AI last advised about one lead, kept so that the model is not asked again on every page view. It is
+/// replaced when what the model is told about the lead changes (inputHash) or when it is a day old. Only answers
+/// from a model are kept; the built-in rules are worked out on the spot.
+model LeadAiAdvice {
+  leadId      String   @id
+  lead        Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  /// The answer (see adviceToJson in src/lib/ai.ts). The WhatsApp message still holds {{name}}, filled in when shown.
+  insight     Json
+  /// A fingerprint of everything the model was told, the provider and model included.
+  inputHash   String
+  provider    String
+  model       String
+  generatedAt DateTime @default(now())
 }
 
 /**
