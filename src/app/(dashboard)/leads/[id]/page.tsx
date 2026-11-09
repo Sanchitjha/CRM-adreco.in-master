@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 import {
   ArrowLeft,
   Phone,
@@ -27,7 +28,7 @@ import {
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { formatINR } from "@/lib/utils";
-import { daysSince, formatDate, today } from "@/lib/dates";
+import { formatDate, today } from "@/lib/dates";
 import { amcState } from "@/lib/lifecycle";
 import { AMC_STATE, INSTALLATION_STATUS, ORDER_STATUS, TICKET_STATUS, type StatusMeta } from "@/lib/statuses";
 import { canAccessDepartment, canAccessSurveys, canAccessQuotations, canView } from "@/lib/rbac";
@@ -41,10 +42,10 @@ import { DocumentsSection, type DocumentRow } from "@/components/leads/documents
 import { SurveyStatusBadge } from "@/components/surveys/survey-status-badge";
 import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { SectionCard, Avatar, Badge, EmptyState } from "@/components/ui";
-import { AiLeadAdvisor } from "@/components/ai/ai-lead-advisor";
+import { AdviceSkeleton, LeadAdviceSection } from "@/components/ai/lead-advice-section";
 import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
 import { LeadContacts } from "@/components/leads/lead-contacts";
-import { analyzeLeadWithAi } from "@/lib/ai";
+import { generateHeuristicInsight, toLeadForAi } from "@/lib/ai";
 import { listMessages } from "@/lib/chat";
 import { ChatConversation } from "@/components/chat/chat-conversation";
 import { LeadEmailSection } from "@/components/leads/lead-email-section";
@@ -174,30 +175,13 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
       : []),
   ];
 
-  const lastFollowUp = lead.followUps[0];
-  const daysSinceFollowUp = lastFollowUp ? daysSince(lastFollowUp.followUpDate) : null;
+  // What the advice card is told about this lead (see src/lib/ai.ts). The card itself is loaded further down, on its own.
+  const leadForAi = toLeadForAi(lead);
 
   // The team's discussion of this lead. Anyone who can open the lead may read and write in it; it is created by
   // the first message, so opening a lead never writes anything.
   const thread = await prisma.chatChannel.findUnique({ where: { leadId: lead.id }, select: { id: true } });
   const threadMessages = thread ? await listMessages(thread.id) : [];
-
-  const leadAiInsight = await analyzeLeadWithAi({
-    id: lead.id,
-    customerName: lead.customerName,
-    phone: lead.phone,
-    email: lead.email,
-    productCategory: lead.productCategory,
-    budget: lead.budget ? Number(lead.budget) : null,
-    status: lead.status,
-    createdAt: lead.createdAt,
-    requirementNotes: lead.requirementNotes,
-    followUpCount: lead.followUps.length,
-    lastFollowUpDaysAgo: daysSinceFollowUp,
-    hasSurvey: lead.siteSurveys.length > 0,
-    hasQuotation: lead.quotations.length > 0,
-    quotationAmount: lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null,
-  });
 
   return (
     <div className="space-y-6">
@@ -228,7 +212,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             budget={lead.budget ? Number(lead.budget) : null}
             quoteNumber={lead.quotations[0]?.quoteNumber}
             grandTotal={lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null}
-            suggestedMessage={leadAiInsight.suggestedWhatsAppMessage}
+            suggestedMessage={generateHeuristicInsight(leadForAi).suggestedWhatsAppMessage}
             variant="button"
             label="WhatsApp"
           />
@@ -245,16 +229,18 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         {/* Activity column */}
         <div className="space-y-6 lg:col-span-2">
           {/* AI Deal Copilot & Strategic Advisor */}
-          <AiLeadAdvisor
-            customerName={lead.customerName}
-            phone={lead.phone}
-            leadId={lead.id}
-            productCategory={lead.productCategory}
-            budget={lead.budget ? Number(lead.budget) : null}
-            quoteNumber={lead.quotations[0]?.quoteNumber}
-            grandTotal={lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null}
-            insight={leadAiInsight}
-          />
+          <Suspense fallback={<AdviceSkeleton />}>
+            <LeadAdviceSection
+              aiInput={leadForAi}
+              customerName={lead.customerName}
+              phone={lead.phone}
+              leadId={lead.id}
+              productCategory={lead.productCategory}
+              budget={lead.budget ? Number(lead.budget) : null}
+              quoteNumber={lead.quotations[0]?.quoteNumber}
+              grandTotal={lead.quotations[0] ? Number(lead.quotations[0].grandTotal) : null}
+            />
+          </Suspense>
           {activeStage && (
             <SectionCard title={`Currently at: ${activeStage.department.name}`} icon={Waypoints}>
               {canActOnActiveStage ? (

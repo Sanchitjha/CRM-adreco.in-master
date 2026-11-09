@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { Building2, ListChecks, Mail, Settings, Timer, Waypoints } from "lucide-react";
+import { Building2, ListChecks, Mail, Settings, Sparkles, Timer, Waypoints } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canView } from "@/lib/rbac";
@@ -10,6 +10,7 @@ import { AutoForm } from "@/components/auto-form";
 import { ActionButton } from "@/components/action-forms";
 import { isMailConfigured } from "@/lib/mailer";
 import { isWhatsAppCloudConfigured } from "@/lib/whatsapp-cloud";
+import { getAiStatus } from "@/lib/ai";
 import {
   addSettingOption,
   deleteSettingOption,
@@ -18,6 +19,7 @@ import {
   updateSlaPolicies,
 } from "./actions";
 import { saveAdminDailyUpdate, sendDailyUpdateNow } from "./daily-update-actions";
+import { testAi } from "./ai-actions";
 
 export default async function SettingsPage() {
   const session = await auth();
@@ -37,6 +39,7 @@ export default async function SettingsPage() {
   const mailReady = isMailConfigured();
   const whatsappReady = isWhatsAppCloudConfigured();
   const receiving = admins.filter((a) => a.receivesDailyUpdate).length;
+  const ai = getAiStatus();
 
   return (
     <div className="space-y-6">
@@ -164,6 +167,58 @@ export default async function SettingsPage() {
               Sends the update to your own email and WhatsApp number only, so you can check that it arrives.
             </p>
           </div>
+        </div>
+      </SectionCard>
+
+      <SectionCard
+        title="AI advice on leads"
+        description="A short assessment and a WhatsApp message draft for each open lead, shown at the top of the lead page."
+        icon={Sparkles}
+      >
+        <div className="space-y-4">
+          <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+            <Badge tone={ai.configured ? "success" : "neutral"}>{ai.configured ? "AI switched on" : "Built-in rules only"}</Badge>
+            {ai.configured ? (
+              <span>
+                {ai.providerLabel}, model{" "}
+                <code className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">{ai.model}</code>
+              </span>
+            ) : (
+              <span>
+                No AI key is set. The advice comes from the built-in rules: nothing leaves the CRM and it costs nothing. To
+                switch the AI on, see DEPLOYMENT.md, section 5c.
+              </span>
+            )}
+          </div>
+
+          <ul className="list-disc space-y-1 pl-5 text-sm text-slate-600">
+            <li>
+              Sent to the AI: the lead&rsquo;s stage, product category and budget, how long ago it was created and last
+              followed up, whether a survey and a quotation exist, and the requirement notes with email addresses, phone
+              numbers and links removed.
+            </li>
+            <li>Never sent: the customer&rsquo;s name, phone number and email address.</li>
+            <li>
+              Won and lost leads use the built-in rules. The AI&rsquo;s answer is saved for each lead and asked for again
+              only when the lead changes or after a day. If the AI does not answer, the built-in advice is shown.
+            </li>
+          </ul>
+
+          {ai.configured && (
+            <div>
+              <ActionButton
+                action={testAi}
+                hidden={{}}
+                label="Test AI now"
+                pendingLabel="Asking the AI…"
+                variant="primary"
+              />
+              <p className="mt-1.5 text-xs text-slate-400">
+                Asks the AI about a made-up lead, so you can check the key, the model and the billing. No real customer is
+                involved.
+              </p>
+            </div>
+          )}
         </div>
       </SectionCard>
 
