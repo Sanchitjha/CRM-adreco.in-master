@@ -44,4 +44,7 @@ EXPOSE 3000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3000/api/health || exit 1
 
-CMD ["node", "server.js"]
+# The variable is set on the command itself as well as above: on ECS Fargate the platform replaces HOSTNAME with the
+# task's own host name, which made the server listen on the network address only. The container health check on
+# 127.0.0.1 then failed and ECS kept replacing healthy-looking tasks.
+CMD ["sh", "-c", "HOSTNAME=0.0.0.0 exec node server.js"]
