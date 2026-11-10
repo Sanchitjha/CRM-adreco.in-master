@@ -14,6 +14,7 @@ import { ActivityTimeline, BackLink, CustomerLink, InfoGrid, StatusPill } from "
 import { AutoForm, type FieldDef } from "@/components/auto-form";
 import { ActionButton, SelectActionForm } from "@/components/action-forms";
 import { InstallChecklist } from "@/components/installations/install-checklist";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { startCommissioning } from "../../commissioning/actions";
 import {
   linkSerials,
@@ -191,6 +192,12 @@ export default async function InstallationDetailPage({ params }: { params: Promi
               />
             )}
           </SectionCard>
+
+          <AttachmentsPanel
+            entityType="INSTALLATION"
+            entityId={job.id}
+            description="Before and after photos, the finished installation, a commissioning video."
+          />
 
           <ActivityTimeline entityType="Installation" entityId={job.id} />
         </div>

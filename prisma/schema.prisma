@@ -31,6 +31,14 @@ enum StageStatus {
   COMPLETED
 }
 
+/// What a photo, video or file is attached to (see model Attachment).
+enum AttachmentEntity {
+  PRODUCT
+  SITE_SURVEY
+  INSTALLATION
+  SERVICE_TICKET
+}
+
 enum DocumentStatus {
   REQUIRED
   RECEIVED
@@ -102,6 +110,7 @@ model User {
   chatMessages ChatMessage[]
   chatReads    ChatRead[]
   emailsSent   LeadEmail[]
+  attachments  Attachment[]
 
   salesOrders           SalesOrder[]    @relation("OrderBy")
   installationsCreated  Installation[]  @relation("InstallBy")
@@ -481,6 +490,24 @@ model LeadEmail {
 
   @@index([leadId, createdAt])
   @@index([sentById, createdAt])
+}
+
+/// A photo, video or file attached to a product, site survey, installation or service ticket. The file itself sits in
+/// the private S3 bucket under s3Key; this row says what it is and who added it. Lead documents have their own table.
+model Attachment {
+  id           String           @id @default(cuid())
+  entityType   AttachmentEntity
+  /// The id of the product, survey, installation or ticket (not a foreign key, because it can point at four tables).
+  entityId     String
+  fileName     String
+  contentType  String
+  size         Int
+  s3Key        String           @unique
+  uploadedById String
+  uploadedBy   User             @relation(fields: [uploadedById], references: [id])
+  createdAt    DateTime         @default(now())
+
+  @@index([entityType, entityId, createdAt])
 }
 
 /// What the AI last advised about one lead, kept so that the model is not asked again on every page view. It is

@@ -33,6 +33,7 @@ export type FieldDef =
       defaultValue?: string | null;
       rows?: number;
     })
+  | (Base & { kind: "file"; accept?: string })
   | (Base & { kind: "checkbox"; defaultChecked?: boolean })
   | (Base & { kind: "checkboxes"; options: (Option & { hint?: string })[]; emptyText?: string })
   | { kind: "hidden"; name: string; value: string };
@@ -174,6 +175,20 @@ function FieldInput({ field, formId }: { field: Exclude<FieldDef, { kind: "hidde
             placeholder={field.placeholder}
             defaultValue={field.defaultValue ?? ""}
             className="textarea"
+          />
+          {hint}
+        </>
+      );
+    case "file":
+      return (
+        <>
+          {label}
+          <input
+            id={id}
+            name={field.name}
+            type="file"
+            accept={field.accept}
+            className="input file:mr-3 file:rounded-md file:border-0 file:bg-slate-100 file:px-3 file:py-1 file:text-sm file:font-medium file:text-slate-700"
           />
           {hint}
         </>

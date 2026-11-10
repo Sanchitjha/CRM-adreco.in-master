@@ -20,6 +20,10 @@ export default async function NewProductPage() {
       <BackLink href="/products" label="Back to products" />
       <PageHeader icon={Package} title="New product" description="Add a heat-pump model or a spare part to the catalog." />
       <Card className="max-w-3xl p-6">
+        <p className="mb-5 rounded-lg bg-slate-50 px-3 py-2 text-sm text-slate-600">
+          After you create the product you land on its page, where you can add photos, a video and the datasheet or
+          brochure as files.
+        </p>
         <AutoForm
           action={createProduct}
           submitLabel="Create product"

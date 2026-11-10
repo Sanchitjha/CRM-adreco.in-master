@@ -10,6 +10,7 @@ import { Badge, SectionCard } from "@/components/ui";
 import { ActivityTimeline, BackLink, InfoGrid } from "@/components/page-kit";
 import { AutoForm } from "@/components/auto-form";
 import { ActionButton } from "@/components/action-forms";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { adjustStock, toggleProductActive } from "../actions";
 
 export default async function ProductDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -118,6 +119,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
               </ul>
             </SectionCard>
           )}
+
+          <AttachmentsPanel
+            entityType="PRODUCT"
+            entityId={product.id}
+            description="Product photos, a demo video, the datasheet or brochure."
+          />
 
           <ActivityTimeline entityType="Product" entityId={product.id} />
         </div>

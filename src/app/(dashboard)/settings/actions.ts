@@ -8,6 +8,7 @@ import { requireUser } from "@/lib/action-auth";
 import { canManage } from "@/lib/rbac";
 import type { ActionState } from "@/lib/action-state";
 import { firstIssueMessage, textOrNull } from "@/lib/validation/common";
+import { resolveLogo } from "@/lib/logo";
 import { addOptionSchema, companyProfileSchema, optionIdSchema, slaSchema } from "@/lib/validation/settings";
 
 const DENIED: ActionState = { error: "Only an administrator can change settings." };
@@ -19,6 +20,21 @@ export async function updateCompanyProfile(_prev: ActionState, formData: FormDat
   const parsed = companyProfileSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: firstIssueMessage(parsed.error.issues) };
   const d = parsed.data;
+
+  // The logo: a picture chosen in the form, a link, or "remove" (see resolveLogo for the order).
+  const chosen = formData.get("logoFile");
+  const upload =
+    chosen instanceof File && chosen.size > 0
+      ? { size: chosen.size, bytes: new Uint8Array(await chosen.arrayBuffer()) }
+      : null;
+  const existing = await prisma.companyProfile.findUnique({ where: { id: "singleton" }, select: { logoUrl: true } });
+  const logo = resolveLogo({
+    file: upload,
+    link: d.logoUrl,
+    remove: formData.get("removeLogo") === "on",
+    current: existing?.logoUrl ?? null,
+  });
+  if ("error" in logo) return { error: logo.error };
 
   const data = {
     legalName: d.legalName,
@@ -32,7 +48,7 @@ export async function updateCompanyProfile(_prev: ActionState, formData: FormDat
     phone: textOrNull(d.phone),
     email: textOrNull(d.email),
     website: textOrNull(d.website),
-    logoUrl: textOrNull(d.logoUrl),
+    logoUrl: logo.value,
     bankDetails: textOrNull(d.bankDetails),
   };
 

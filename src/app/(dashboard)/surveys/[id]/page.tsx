@@ -8,6 +8,7 @@ import { SectionCard, Avatar, Badge } from "@/components/ui";
 import { SurveyStatusBadge } from "@/components/surveys/survey-status-badge";
 import { SurveyStatusControl } from "@/components/surveys/survey-status-control";
 import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 
 function Row({ label, value, unit }: { label: string; value: number | string | null; unit?: string }) {
   if (value === null || value === "" || value === undefined) return null;
@@ -140,6 +141,12 @@ export default async function SurveyDetailPage({ params }: { params: Promise<{ i
               <p className="text-sm text-slate-400">No recommendation recorded yet.</p>
             )}
           </SectionCard>
+
+          <AttachmentsPanel
+            entityType="SITE_SURVEY"
+            entityId={survey.id}
+            description="Pictures and videos of the site: roof, plant room, pipes, electrical panel."
+          />
         </div>
 
         <div className="space-y-6">

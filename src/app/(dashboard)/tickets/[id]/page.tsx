@@ -15,6 +15,7 @@ import { Avatar, SectionCard } from "@/components/ui";
 import { ActivityTimeline, BackLink, CustomerLink, InfoGrid, StatusPill } from "@/components/page-kit";
 import { AutoForm } from "@/components/auto-form";
 import { ActionButton, SelectActionForm } from "@/components/action-forms";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { addTicketPart, assignTicket, checkInTicket, removeTicketPart, saveTicketNotes, updateTicketStatus } from "../actions";
 
 export default async function TicketDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -288,6 +289,12 @@ export default async function TicketDetailPage({ params }: { params: Promise<{ i
               </div>
             )}
           </SectionCard>
+
+          <AttachmentsPanel
+            entityType="SERVICE_TICKET"
+            entityId={ticket.id}
+            description="Photos and videos of the fault, the unit's nameplate, the repair."
+          />
 
           <ActivityTimeline entityType="ServiceTicket" entityId={ticket.id} />
         </div>
