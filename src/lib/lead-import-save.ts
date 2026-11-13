@@ -7,8 +7,14 @@ const atMidnightUtc = (isoDate: string) => new Date(`${isoDate}T00:00:00.000Z`);
  * The database record for one imported prospect: the lead with its other contacts and its first follow-up, ready for
  * `lead.create`. The Import page and the demo seed both use it, so a prospect is saved the same way either way.
  */
-export function leadFromImportRow(row: ImportRow, userId: string, assignedToId: string | null): Prisma.LeadUncheckedCreateInput {
+export function leadFromImportRow(
+  row: ImportRow,
+  userId: string,
+  assignedToId: string | null,
+  importBatchId: string | null = null,
+): Prisma.LeadUncheckedCreateInput {
   return {
+    ...(importBatchId ? { importBatchId } : {}),
     customerName: row.customerName,
     contactRole: row.contactRole,
     phone: row.phone,

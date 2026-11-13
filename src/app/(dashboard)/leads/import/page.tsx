@@ -31,16 +31,17 @@ export default async function ImportLeadsPage() {
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="p-6">
-          <ImportLeadsForm />
+          <ImportLeadsForm admin={role === "ADMIN"} />
         </Card>
 
         <Card className="h-fit space-y-3 p-5 text-sm text-slate-600">
           <h2 className="text-sm font-semibold text-slate-900">How it works</h2>
           <ol className="list-decimal space-y-1.5 pl-4">
-            <li>Use your own sheet, or download the template. Columns are matched by their headings.</li>
-            <li>Choose the file (.xlsx or .csv).</li>
-            <li>Press “Check file” to see what will happen. Nothing is saved yet.</li>
-            <li>Press “Import” to add the leads.</li>
+            <li>Use your own sheet, or download the template. Columns are matched by their headings, with the AI helping for unusual ones.</li>
+            <li>Choose the file (.xlsx or .csv). Every sheet of a workbook is read.</li>
+            <li>Optionally choose how much of it to bring in: the last few months, or between two dates.</li>
+            <li>Press “Check file” to see what will happen and how the columns were understood. Nothing is saved yet.</li>
+            <li>Press “Import” to add the leads. A big file is saved in steps.</li>
           </ol>
           <p className="text-xs text-slate-400">
             Only customer name and phone are required. If the sheet has a serial-number column (Sr.No.), a row without

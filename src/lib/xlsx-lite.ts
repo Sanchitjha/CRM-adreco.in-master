@@ -1,7 +1,7 @@
 import { inflateRawSync } from "node:zlib";
 
 /**
- * A small, dependency-free reader for the first sheet of an .xlsx workbook, so a sales team can upload the
+ * A small, dependency-free reader for the sheets of an .xlsx workbook, so a sales team can upload the
  * spreadsheet they already keep. An .xlsx file is a zip of XML parts; this reads the zip's directory, inflates
  * only the handful of parts it needs (never writing anything to disk), and returns the sheet as rows of text.
  *
@@ -11,7 +11,7 @@ import { inflateRawSync } from "node:zlib";
 
 const MAX_PART_BYTES = 8 * 1024 * 1024; // each part, after unzipping
 const MAX_ENTRIES = 200;
-const MAX_ROWS = 5000;
+const MAX_ROWS = 20000; // per sheet
 const MAX_COLUMNS = 100;
 
 export type SheetData = { sheetName: string; rows: string[][] };
@@ -109,29 +109,8 @@ function dateStyles(stylesXml: string): boolean[] {
 const columnIndex = (ref: string) => ref.replace(/\d+/g, "").split("").reduce((n, c) => n * 26 + c.charCodeAt(0) - 64, 0) - 1;
 const isoDate = (serial: number) => new Date(Math.round((Math.floor(serial) - 25569) * 86400 * 1000)).toISOString().slice(0, 10);
 
-/** Reads the first worksheet of an .xlsx file. Dates come back as "YYYY-MM-DD", numbers and text as text. */
-export function readXlsx(data: Uint8Array): SheetData {
-  const buf = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
-  const entries = readDirectory(buf);
-
-  const workbook = readPart(buf, entries, "xl/workbook.xml");
-  const rels = readPart(buf, entries, "xl/_rels/workbook.xml.rels");
-  if (!workbook || !rels) throw new Error("This does not look like an Excel workbook");
-
-  const sheet = workbook.match(/<sheet\s[^>]*?name="([^"]*)"[^>]*?r:id="([^"]+)"/);
-  if (!sheet) throw new Error("The workbook has no sheets");
-  const relationship = [...rels.matchAll(/<Relationship\s[^>]*>/g)].map((m) => m[0]).find((tag) => tag.includes(`Id="${sheet[2]}"`));
-  const target = relationship?.match(/Target="([^"]+)"/)?.[1];
-  if (!target) throw new Error("The first sheet could not be located");
-  const sheetXml = readPart(buf, entries, "xl/" + target.replace(/^\/?(xl\/)?/, ""));
-  if (!sheetXml) throw new Error("The first sheet could not be read");
-
-  // An empty <si/> still takes up an index, so it must be counted.
-  const shared = [...(readPart(buf, entries, "xl/sharedStrings.xml") ?? "").matchAll(/<si(?:\s[^>]*)?(?:\/>|>([\s\S]*?)<\/si>)/g)].map((m) =>
-    textOf(m[1] ?? ""),
-  );
-  const dates = dateStyles(readPart(buf, entries, "xl/styles.xml") ?? "");
-
+/** The rows of one worksheet's XML. */
+function readSheetRows(sheetXml: string, shared: string[], dates: boolean[]): string[][] {
   const rows: string[][] = [];
   for (const row of sheetXml.matchAll(/<row\s[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g)) {
     if (rows.length >= MAX_ROWS) break;
@@ -165,6 +144,48 @@ export function readXlsx(data: Uint8Array): SheetData {
     }
     if (cells.some((c) => c !== "")) rows.push(cells);
   }
+  return rows;
+}
 
-  return { sheetName: decodeXml(sheet[1]), rows };
+/**
+ * Reads every visible worksheet of an .xlsx file, in the order of the tabs. Dates come back as "YYYY-MM-DD", numbers
+ * and text as text. A workbook that keeps one month per tab comes back as one entry per month.
+ */
+export function readXlsxSheets(data: Uint8Array): SheetData[] {
+  const buf = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+  const entries = readDirectory(buf);
+
+  const workbook = readPart(buf, entries, "xl/workbook.xml");
+  const rels = readPart(buf, entries, "xl/_rels/workbook.xml.rels");
+  if (!workbook || !rels) throw new Error("This does not look like an Excel workbook");
+
+  const tags = [...workbook.matchAll(/<sheet\s[^>]*>/g)].map((m) => m[0]);
+  if (tags.length === 0) throw new Error("The workbook has no sheets");
+  const relationships = [...rels.matchAll(/<Relationship\s[^>]*>/g)].map((m) => m[0]);
+
+  // An empty <si/> still takes up an index, so it must be counted.
+  const shared = [...(readPart(buf, entries, "xl/sharedStrings.xml") ?? "").matchAll(/<si(?:\s[^>]*)?(?:\/>|>([\s\S]*?)<\/si>)/g)].map((m) =>
+    textOf(m[1] ?? ""),
+  );
+  const dates = dateStyles(readPart(buf, entries, "xl/styles.xml") ?? "");
+
+  const sheets: SheetData[] = [];
+  for (const tag of tags) {
+    if (/\bstate="(?:hidden|veryHidden)"/.test(tag)) continue;
+    const name = tag.match(/\bname="([^"]*)"/)?.[1] ?? "";
+    const id = tag.match(/\br:id="([^"]+)"/)?.[1];
+    const relationship = relationships.find((r) => id !== undefined && r.includes(`Id="${id}"`));
+    const target = relationship?.match(/Target="([^"]+)"/)?.[1];
+    if (!target) continue;
+    const sheetXml = readPart(buf, entries, "xl/" + target.replace(/^\/?(xl\/)?/, ""));
+    if (!sheetXml) continue;
+    sheets.push({ sheetName: decodeXml(name), rows: readSheetRows(sheetXml, shared, dates) });
+  }
+  if (sheets.length === 0) throw new Error("The sheets could not be read");
+  return sheets;
+}
+
+/** Reads the first worksheet of an .xlsx file (see readXlsxSheets for all of them). */
+export function readXlsx(data: Uint8Array): SheetData {
+  return readXlsxSheets(data)[0];
 }
