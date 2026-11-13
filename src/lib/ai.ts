@@ -629,24 +629,28 @@ export type AdviceResult =
   | { ok: true; draft: AdviceDraft; provider: AiProvider; model: string; ms: number }
   | { ok: false; reason: string };
 
+export type JsonAnswer =
+  | { ok: true; value: unknown; provider: AiProvider; model: string; ms: number }
+  | { ok: false; reason: string };
+
 /**
- * Asks the model about one lead. Never throws: a failure comes back as { ok: false, reason } with a line that is safe
- * to show to an administrator.
+ * Sends a prompt to the configured model and returns the JSON it answered with. Never throws: a failure comes back as
+ * { ok: false, reason } with a line that is safe to show to an administrator. Checking the shape of the answer is up
+ * to the caller.
  */
-export async function requestAdvice(
+export async function askModelJson(
   config: AiConfig,
-  facts: LeadFacts,
+  prompt: AiPrompt,
   options: { fetchImpl?: typeof fetch; timeoutMs?: number; clock?: () => number } = {},
-): Promise<AdviceResult> {
+): Promise<JsonAnswer> {
   const fetchImpl = options.fetchImpl ?? fetch;
   const timeoutMs = options.timeoutMs ?? AI_TIMEOUT_MS;
   const clock = options.clock ?? Date.now;
   const started = clock();
 
-  const prompt = buildAdvicePrompt(facts);
   const { url, init } = config.provider === "gemini" ? buildGeminiRequest(config, prompt) : buildOpenAiRequest(config, prompt);
 
-  const fail = (reason: string, pauseMs: number): AdviceResult => {
+  const fail = (reason: string, pauseMs: number): JsonAnswer => {
     blockProvider(config.provider, pauseMs, clock());
     return { ok: false, reason: scrub(reason, config.apiKey) };
   };
@@ -664,11 +668,11 @@ export async function requestAdvice(
     const answer = extractAnswer(config.provider, body);
     if (!answer.text) return fail(answer.why, 60_000);
 
-    const draft = normalizeAdvice(parseModelJson(answer.text));
-    if (!draft) return fail("The AI's answer was not in the expected form.", 15_000);
+    const value = parseModelJson(answer.text);
+    if (value === null || value === undefined) return fail("The AI's answer was not in the expected form.", 15_000);
 
     clearBlock(config.provider);
-    return { ok: true, draft, provider: config.provider, model: config.model, ms: clock() - started };
+    return { ok: true, value, provider: config.provider, model: config.model, ms: clock() - started };
   } catch (error) {
     const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
     const label = LABEL[config.provider];
@@ -679,6 +683,27 @@ export async function requestAdvice(
       60_000,
     );
   }
+}
+
+/**
+ * Asks the model about one lead. Never throws: a failure comes back as { ok: false, reason } with a line that is safe
+ * to show to an administrator.
+ */
+export async function requestAdvice(
+  config: AiConfig,
+  facts: LeadFacts,
+  options: { fetchImpl?: typeof fetch; timeoutMs?: number; clock?: () => number } = {},
+): Promise<AdviceResult> {
+  const clock = options.clock ?? Date.now;
+  const answer = await askModelJson(config, buildAdvicePrompt(facts), options);
+  if (!answer.ok) return answer;
+
+  const draft = normalizeAdvice(answer.value);
+  if (!draft) {
+    blockProvider(config.provider, 15_000, clock());
+    return { ok: false, reason: "The AI's answer was not in the expected form." };
+  }
+  return { ok: true, draft, provider: answer.provider, model: answer.model, ms: answer.ms };
 }
 
 /** A made-up lead for the Test button on the Settings page, so a test never sends a real customer's details. */

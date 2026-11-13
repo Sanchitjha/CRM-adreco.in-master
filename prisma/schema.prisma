@@ -111,6 +111,7 @@ model User {
   chatReads    ChatRead[]
   emailsSent   LeadEmail[]
   attachments  Attachment[]
+  importBatches ImportBatch[]
 
   salesOrders           SalesOrder[]    @relation("OrderBy")
   installationsCreated  Installation[]  @relation("InstallBy")
@@ -204,10 +205,34 @@ model Lead {
   emails      LeadEmail[]
   aiAdvice    LeadAiAdvice?
 
+  /// The import this lead came in with, if it was imported (see model ImportBatch).
+  importBatchId String?
+  importBatch   ImportBatch? @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+
   @@index([status])
   @@index([assignedToId])
   @@index([currentDepartmentId])
   @@index([dealerId])
+  @@index([importBatchId])
+  @@index([createdAt])
+}
+
+/// One run of the lead importer (a file, possibly with several sheets), so that imports can be listed and the leads
+/// that came in with one can be found again.
+model ImportBatch {
+  id          String   @id @default(cuid())
+  fileName    String
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation(fields: [createdById], references: [id])
+  /// What was asked for: "everything in the file", "the last 3 months", "2026-08-01 to 2026-10-31".
+  period      String?
+  leadsAdded  Int      @default(0)
+  contacts    Int      @default(0)
+  followUps   Int      @default(0)
+  leads       Lead[]
+
+  @@index([createdAt])
 }
 
 /// The other people on a prospect's project besides the main contact: the owner, the site in-charge, the

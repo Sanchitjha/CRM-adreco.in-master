@@ -1,6 +1,6 @@
 import { deflateRawSync } from "node:zlib";
 import { describe, expect, it } from "vitest";
-import { looksLikeXlsx, readXlsx } from "@/lib/xlsx-lite";
+import { looksLikeXlsx, readXlsx, readXlsxSheets } from "@/lib/xlsx-lite";
 
 // A tiny zip writer, so the tests can build workbooks of their own instead of shipping a real (customer) file.
 const CRC_TABLE = Array.from({ length: 256 }, (_, n) => {
@@ -69,6 +69,29 @@ function workbook(sheetXml: string, sharedStrings: string[]): Uint8Array {
     "xl/worksheets/sheet1.xml": `<worksheet><sheetData>${sheetXml}</sheetData></worksheet>`,
   });
 }
+
+describe("readXlsxSheets", () => {
+  const cellRow = (r: number, text: string) => `<row r="${r}"><c r="A${r}" t="inlineStr"><is><t>${text}</t></is></c></row>`;
+
+  it("reads every visible sheet, one per tab, and skips hidden ones", () => {
+    const data = zip({
+      "xl/workbook.xml":
+        '<workbook xmlns:r="x"><sheets><sheet name="Sept" sheetId="1" r:id="rId1"/><sheet name="Oct" sheetId="2" r:id="rId2"/><sheet name="Notes" sheetId="3" state="hidden" r:id="rId3"/></sheets></workbook>',
+      "xl/_rels/workbook.xml.rels":
+        '<Relationships><Relationship Id="rId1" Type="t" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="t" Target="worksheets/sheet2.xml"/><Relationship Id="rId3" Type="t" Target="worksheets/sheet3.xml"/></Relationships>',
+      "xl/styles.xml": '<styleSheet><cellXfs count="1"><xf numFmtId="0"/></cellXfs></styleSheet>',
+      "xl/worksheets/sheet1.xml": `<worksheet><sheetData>${cellRow(1, "Name")}${cellRow(2, "Asha")}</sheetData></worksheet>`,
+      "xl/worksheets/sheet2.xml": `<worksheet><sheetData>${cellRow(1, "Name")}${cellRow(2, "Ravi")}</sheetData></worksheet>`,
+      "xl/worksheets/sheet3.xml": `<worksheet><sheetData>${cellRow(1, "Secret")}</sheetData></worksheet>`,
+    });
+
+    const sheets = readXlsxSheets(data);
+    expect(sheets.map((s) => s.sheetName)).toEqual(["Sept", "Oct"]);
+    expect(sheets[0].rows).toEqual([["Name"], ["Asha"]]);
+    expect(sheets[1].rows).toEqual([["Name"], ["Ravi"]]);
+    expect(readXlsx(data).sheetName).toBe("Sept");
+  });
+});
 
 describe("readXlsx", () => {
   it("reads text, numbers and dates from the first sheet", () => {

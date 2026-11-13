@@ -2,7 +2,14 @@ import { z } from "zod";
 import { parseCsv } from "@/lib/csv";
 import { extractEmail, firstAmount, guessCategory, parseFlexibleDate, splitPeople, type Person } from "@/lib/prospect-parse";
 
-export const MAX_IMPORT_ROWS = 2000;
+/** Rows in one sheet. A few months of a sales team's sheet is a few thousand rows at most. */
+export const MAX_IMPORT_ROWS = 20000;
+
+/** The largest file accepted. Next.js is told to let an upload this big through (see next.config.ts). */
+export const MAX_IMPORT_FILE_BYTES = 10 * 1024 * 1024;
+
+/** Prospects saved per request, so a big file is imported in steps that each finish in a few seconds. */
+export const IMPORT_BATCH_SIZE = 250;
 
 export type ImportContact = {
   /** Line in the file, counting the header as line 1. */
@@ -42,6 +49,18 @@ export type ImportRow = {
 
 export type ImportProblem = { line: number; message: string };
 
+/** How one column of the sheet was understood. */
+export type ColumnInfo = {
+  /** Position in the sheet, starting at 0. */
+  index: number;
+  /** The heading as typed in the sheet. */
+  heading: string;
+  /** The CRM field the column feeds, or null when it is ignored. */
+  field: ImportField | null;
+  /** Found from the heading itself, suggested by the AI, or chosen by a person. */
+  by: "heading" | "ai" | "you";
+};
+
 export type ParsedImport = {
   rows: ImportRow[];
   problems: ImportProblem[];
@@ -49,9 +68,11 @@ export type ParsedImport = {
   fatal: string | null;
   /** Data rows in the file, including contact rows. */
   totalRows: number;
+  /** The columns as they were understood, so a person can see and correct them. */
+  columns: ColumnInfo[];
 };
 
-type Field =
+export type ImportField =
   | "customerName"
   | "phone"
   | "email"
@@ -69,6 +90,28 @@ type Field =
   | "quote"
   | "enquiryDate";
 
+type Field = ImportField;
+
+/** What each field is called on screen and what it holds, for the column picker and for the AI's instructions. */
+export const IMPORT_FIELDS: { field: ImportField; label: string; meaning: string }[] = [
+  { field: "customerName", label: "Customer name", meaning: "the name of the customer, company or contact person" },
+  { field: "phone", label: "Phone", meaning: "the phone or mobile number" },
+  { field: "email", label: "Email", meaning: "an email address" },
+  { field: "address", label: "Address / location", meaning: "address, city, area or site location" },
+  { field: "productCategory", label: "Product category", meaning: "the product or category the customer is interested in" },
+  { field: "requirementNotes", label: "Requirement / project", meaning: "the project or requirement description, size, notes" },
+  { field: "budget", label: "Budget", meaning: "budget, deal value or amount" },
+  { field: "source", label: "Source", meaning: "where the enquiry came from (website, referral, exhibition...)" },
+  { field: "assignedTo", label: "Owner (salesperson)", meaning: "the salesperson, executive or owner handling the lead" },
+  { field: "contactRole", label: "Contact role", meaning: "the person's role, designation or position" },
+  { field: "referredBy", label: "Referred by", meaning: "who referred or introduced the customer" },
+  { field: "serial", label: "Serial number", meaning: "a running serial number (Sr. No.) that starts each prospect" },
+  { field: "followUpDate", label: "Next follow-up date", meaning: "the date of the next follow-up or call" },
+  { field: "remarks", label: "Remarks / call notes", meaning: "remarks, call history or follow-up notes" },
+  { field: "quote", label: "Quote", meaning: "the quotation given: capacity and price" },
+  { field: "enquiryDate", label: "Enquiry date", meaning: "the date the enquiry arrived or the lead was created" },
+];
+
 // Header names people commonly use, compared after lower-casing and dropping spaces and punctuation.
 const FIELD_ALIASES: Record<Field, string[]> = {
   customerName: ["customername", "customer", "name", "client", "clientname", "company", "companyname", "party", "contactperson", "contactname"],
@@ -79,15 +122,47 @@ const FIELD_ALIASES: Record<Field, string[]> = {
   budget: ["budget", "value", "estimatedvalue", "amount", "dealvalue"],
   source: ["source", "leadsource", "channel", "origin"],
   requirementNotes: ["requirementnotes", "requirement", "requirements", "notes", "comments", "description", "project", "projectdetails", "projectdescription", "projecttype"],
-  assignedTo: ["assignedto", "assignedtoemail", "owner", "owneremail", "leadowner", "salesrep", "salesperson", "assignee"],
+  assignedTo: [
+    "assignedto", "assignedtoemail", "owner", "owneremail", "leadowner", "salesrep", "salesperson", "assignee", "executive",
+    "salesexecutive", "handledby", "attendedby", "salesman", "responsible", "responsibleperson", "allottedto", "allocatedto",
+    "assignedperson",
+  ],
   contactRole: ["role", "contactrole", "designation", "position", "title"],
   referredBy: ["referredby", "referral", "reference", "refby"],
   serial: ["srno", "sno", "slno", "serialno", "serial", "sr"],
   followUpDate: ["followup", "followupdate", "nextfollowup", "nextfollowupdate", "nextcalldate"],
   remarks: ["remarks", "remark", "callnotes", "calllog", "followupnotes", "history"],
   quote: ["quote", "quotation", "quoted", "quotegiven", "quotedetails", "quotedprice", "quoteamount"],
-  enquiryDate: ["date", "enquirydate", "inquirydate", "leaddate", "createddate", "createdon"],
+  enquiryDate: ["date", "enquirydate", "inquirydate", "leaddate", "createddate", "createdon", "dateofenquiry", "dateofinquiry", "entrydate", "receiveddate", "enquiryon"],
 };
+
+/** The columns whose heading is a name people commonly use, first match winning for each field. */
+export function detectColumns(header: string[]): Map<ImportField, number> {
+  const columnOf = new Map<Field, number>();
+  header.forEach((cell, index) => {
+    const name = normaliseHeader(cell);
+    for (const [field, aliases] of Object.entries(FIELD_ALIASES) as [Field, string[]][]) {
+      if (aliases.includes(name) && !columnOf.has(field)) columnOf.set(field, index);
+    }
+  });
+  return columnOf;
+}
+
+/** Every heading of the sheet with the field it feeds, for showing to a person. `by` says who decided each one. */
+export function describeColumns(
+  header: string[],
+  columnOf: Map<ImportField, number>,
+  decidedBy: Map<number, "ai" | "you"> = new Map(),
+): ColumnInfo[] {
+  const fieldAt = new Map<number, ImportField>();
+  for (const [field, index] of columnOf) fieldAt.set(index, field);
+  return header.map((heading, index) => ({
+    index,
+    heading: heading.trim(),
+    field: fieldAt.get(index) ?? null,
+    by: decidedBy.get(index) ?? "heading",
+  }));
+}
 
 const REQUIRED: { field: Field; label: string }[] = [
   { field: "customerName", label: "customer name" },
@@ -129,18 +204,21 @@ type OpenProspect = { row: ImportRow; remarks: string[]; dates: string[]; quote:
  * is another person on the prospect above it (the site in-charge, the contractor, the plumber) rather than a new
  * lead, and is kept as a contact of that prospect.
  */
-export function parseLeadTable(table: string[][]): ParsedImport {
-  const empty = { rows: [], problems: [], totalRows: 0 };
-  if (table.length === 0) return { ...empty, fatal: "The file is empty." };
+export function parseLeadTable(
+  table: string[][],
+  options: {
+    /** The columns to use instead of working them out from the headings (after a person or the AI has chosen them). */
+    columns?: Map<ImportField, number>;
+    /** Which of those were chosen by the AI or by a person, for the report. */
+    decidedBy?: Map<number, "ai" | "you">;
+  } = {},
+): ParsedImport {
+  const none = { rows: [], problems: [], totalRows: 0, columns: [] as ColumnInfo[] };
+  if (table.length === 0) return { ...none, fatal: "The file is empty." };
 
   const [header, ...body] = table;
-  const columnOf = new Map<Field, number>();
-  header.forEach((cell, index) => {
-    const name = normaliseHeader(cell);
-    for (const [field, aliases] of Object.entries(FIELD_ALIASES) as [Field, string[]][]) {
-      if (aliases.includes(name) && !columnOf.has(field)) columnOf.set(field, index);
-    }
-  });
+  const columnOf = options.columns ?? detectColumns(header);
+  const empty = { ...none, columns: describeColumns(header, columnOf, options.decidedBy) };
 
   const missing = REQUIRED.filter((r) => !columnOf.has(r.field)).map((r) => r.label);
   if (missing.length > 0) {
@@ -286,7 +364,7 @@ export function parseLeadTable(table: string[][]): ParsedImport {
   });
   closeProspect();
 
-  return { rows, problems, fatal: null, totalRows: body.length };
+  return { rows, problems, fatal: null, totalRows: body.length, columns: empty.columns };
 }
 
 /** The sample file offered for download: the headers we expect and one example row. */

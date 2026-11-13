@@ -22,6 +22,7 @@ import {
   MessagesSquare,
   Eye,
   UsersRound,
+  Database,
   type LucideIcon,
 } from "lucide-react";
 
@@ -95,6 +96,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: "Administration",
     items: [
       { label: "Users", href: "/admin/users", icon: Users, roles: ADMIN_ONLY },
+      { label: "Data import", href: "/admin/data", icon: Database, roles: ADMIN_ONLY },
       { label: "Reports", href: "/admin/reports", icon: BarChart3, roles: ADMIN_ONLY },
       { label: "Team activity", href: "/admin/team", icon: UsersRound, roles: ADMIN_ONLY },
       { label: "All chats", href: "/admin/chats", icon: Eye, roles: ADMIN_ONLY },

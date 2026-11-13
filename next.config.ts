@@ -13,6 +13,8 @@ const nextConfig: NextConfig = {
   // Standalone output for a small, self-contained Docker image (see Dockerfile).
   output: "standalone",
   poweredByHeader: false,
+  // Server actions accept 1 MB by default. The lead importer takes spreadsheets of several months, up to 10 MB.
+  experimental: { serverActions: { bodySizeLimit: "12mb" } },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
