@@ -42,6 +42,10 @@ export async function refreshLeadAdvice(_prevState: ActionState, formData: FormD
     // The technical reason (an expired key, a retired model) is for the people who can fix it.
     return { error: viewer.role === "ADMIN" ? `${friendly} ${outcome.reason}` : friendly };
   }
+  if (outcome.kind === "rules") {
+    // Only when the saved advice could not be read: the AI was not asked, so nothing was updated.
+    return { error: "The saved advice could not be read just now, so the built-in advice is shown. Please try again in a minute." };
+  }
   if (outcome.kind === "cached") return { message: "The advice is already up to date." };
   return { message: "The advice is updated." };
 }

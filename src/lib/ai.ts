@@ -406,7 +406,9 @@ export function normalizeAdvice(raw: unknown): AdviceDraft | null {
   const score = Math.max(0, Math.min(100, Math.round(asPercent)));
 
   const word = typeof r.urgency === "string" ? r.urgency.trim().toLowerCase() : "";
-  const urgency: Urgency | null = word === "urgent" ? "Urgent" : word === "normal" ? "Normal" : word === "low" ? "Low" : null;
+  // "High" and "Medium" are what a model most often writes when it forgets the three words it was given.
+  const urgency: Urgency | null =
+    word === "urgent" || word === "high" ? "Urgent" : word === "normal" || word === "medium" ? "Normal" : word === "low" ? "Low" : null;
   if (!urgency) return null;
 
   const summary = tidy(r.summary, 400);
@@ -414,15 +416,26 @@ export function normalizeAdvice(raw: unknown): AdviceDraft | null {
   const message = tidy(r.whatsappMessage ?? r.suggestedWhatsAppMessage, 100_000);
   if (!summary || !recommendedAction || !message || message.length > MESSAGE_LIMIT) return null;
 
-  const messageTemplate = message
-    .replace(/\{\{\s*name\s*\}\}/gi, NAME_TOKEN)
-    .replace(/\[\s*(?:customer(?:'s)?\s+)?name\s*\]|<\s*(?:customer(?:'s)?\s+)?name\s*>/gi, NAME_TOKEN)
-    .replace(/\{\{[^}]*\}\}/g, (token) => (token === NAME_TOKEN ? token : ""))
-    .replace(/\s+/g, " ")
-    .trim();
+  const messageTemplate = fillNameTokens(message).replace(/\s+/g, " ").trim();
   if (!messageTemplate) return null;
 
   return { score, urgency, summary, recommendedAction, messageTemplate };
+}
+
+/** "the customer", "customer name", "[Client's name]", "name of the customer": every way of saying "put the name here". */
+const NAME_WORDS =
+  /^(?:the\s+)?(?:(?:customer|client|lead|prospect)(?:['’]s)?(?:\s+(?:full\s+|first\s+)?name)?|(?:full\s+|first\s+)?name(?:\s+of\s+(?:the\s+)?(?:customer|client))?)$/i;
+
+/**
+ * Every place the model wrote the customer's name as a placeholder becomes {{name}} (it is filled in when the advice is
+ * shown). Any other {{...}} token is dropped; other [..] and <..> text is left exactly as written.
+ */
+function fillNameTokens(message: string): string {
+  return message.replace(/\{\{([^}]*)\}\}|\[([^\]]{1,40})\]|<([^>]{1,40})>/g, (token, braces?: string, square?: string, angle?: string) => {
+    const inner = (braces ?? square ?? angle ?? "").trim();
+    if (NAME_WORDS.test(inner)) return NAME_TOKEN;
+    return braces !== undefined ? "" : token;
+  });
 }
 
 /** The JSON a draft is saved as; normalizeAdvice reads it back, so a saved answer is checked every time it is used. */
@@ -625,6 +638,10 @@ export function blockedFor(provider: AiProvider, now: number = Date.now()): numb
   return Math.max(0, (blockedUntil[provider] ?? 0) - now);
 }
 
+function isTimeoutError(error: unknown): boolean {
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+}
+
 export type AdviceResult =
   | { ok: true; draft: AdviceDraft; provider: AiProvider; model: string; ms: number }
   | { ok: false; reason: string };
@@ -660,8 +677,9 @@ export async function askModelJson(
     let body: unknown = null;
     try {
       body = await response.json();
-    } catch {
-      // Not JSON: the status code says enough.
+    } catch (error) {
+      // Not JSON: the status code says enough. But a time-out while the answer was still arriving is reported as one.
+      if (isTimeoutError(error)) throw error;
     }
     if (!response.ok) return fail(describeAiError(config, response.status, body), pauseFor(response.status));
 
@@ -674,7 +692,7 @@ export async function askModelJson(
     clearBlock(config.provider);
     return { ok: true, value, provider: config.provider, model: config.model, ms: clock() - started };
   } catch (error) {
-    const timedOut = error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+    const timedOut = isTimeoutError(error);
     const label = LABEL[config.provider];
     return fail(
       timedOut

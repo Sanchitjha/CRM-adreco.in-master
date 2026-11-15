@@ -42,12 +42,14 @@ export function buildColumnPrompt(headings: string[]): AiPrompt {
 /** The AI's answer as column index to field, keeping only what is valid and each field once. */
 export function parseColumnAnswer(raw: unknown, headingCount: number): Map<number, ImportField> {
   const out = new Map<number, ImportField>();
-  const columns = (raw as { columns?: unknown } | null)?.columns;
+  // The answer should be {"columns":[...]}, but a bare list of the same entries means the same thing.
+  const columns = Array.isArray(raw) ? raw : (raw as { columns?: unknown } | null)?.columns;
   if (!Array.isArray(columns)) return out;
 
   const usedFields = new Set<string>();
   for (const entry of columns) {
-    const { index, field } = (entry ?? {}) as { index?: unknown; field?: unknown };
+    const { index: rawIndex, field } = (entry ?? {}) as { index?: unknown; field?: unknown };
+    const index = typeof rawIndex === "string" && /^\d{1,3}$/.test(rawIndex.trim()) ? Number(rawIndex) : rawIndex; // "3" for 3
     if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index >= headingCount) continue;
     if (typeof field !== "string" || !VALID_FIELDS.has(field)) continue;
     if (out.has(index) || usedFields.has(field)) continue;

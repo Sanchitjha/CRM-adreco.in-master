@@ -17,6 +17,8 @@ export type AiLeadAdvisorProps = {
   insight: LeadAiInsight;
   /** Shows the Refresh button: the AI is set up and the lead is still open. */
   canRefresh?: boolean;
+  /** The lead is won or lost, so there is nothing left to act on. */
+  closed?: boolean;
 };
 
 export function AiLeadAdvisor({
@@ -29,9 +31,11 @@ export function AiLeadAdvisor({
   grandTotal,
   insight,
   canRefresh = false,
+  closed = false,
 }: AiLeadAdvisorProps) {
-  const scoreColor =
-    insight.score >= 75
+  const scoreColor = closed
+    ? "text-slate-600 bg-slate-100 ring-slate-200"
+    : insight.score >= 75
       ? "text-emerald-600 bg-emerald-50 ring-emerald-200"
       : insight.score >= 50
       ? "text-amber-600 bg-amber-50 ring-amber-200"
@@ -82,7 +86,7 @@ export function AiLeadAdvisor({
             <span className="text-xs font-medium text-slate-400">/100</span>
           </div>
           <span className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${scoreColor}`}>
-            {insight.urgency === "Urgent" ? "Action Needed" : "On Track"}
+            {closed ? "Closed" : insight.urgency === "Urgent" ? "Action Needed" : "On Track"}
           </span>
         </div>
 

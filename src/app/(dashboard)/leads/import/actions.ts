@@ -175,6 +175,8 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
     const table = sheet.rows;
     const header = table[0] ?? [];
     const label = sheet.sheetName || "the file";
+    // A workbook has several sheets, so its notes say which; a plain CSV has just the one.
+    const noteLead = sheet.sheetName ? `${sheet.sheetName}: ` : "";
 
     let columns: Map<ImportField, number>;
     const decidedBy = new Map<number, "ai" | "you">();
@@ -200,12 +202,12 @@ export async function importLeads(_prev: ImportState, formData: FormData): Promi
               decidedBy.set(col, "ai");
               matched += 1;
             }
-            if (matched > 0) aiNotes.push(`${label}: the AI matched ${matched} column${matched === 1 ? "" : "s"} from their headings.`);
+            if (matched > 0) aiNotes.push(`${noteLead}The AI matched ${matched} column${matched === 1 ? "" : "s"} from their headings.`);
           } else {
-            aiNotes.push(`${label}: the AI could not help (${answer.reason}).`);
+            aiNotes.push(`${noteLead}The AI could not help (${answer.reason}).`);
           }
         } else {
-          aiNotes.push(`${label}: the first row looks like data rather than headings, so it was not sent to the AI.`);
+          aiNotes.push(`${noteLead}The first row looks like data rather than headings, so it was not sent to the AI.`);
         }
       }
     }
