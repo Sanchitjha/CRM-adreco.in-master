@@ -13,6 +13,7 @@ import {
 import type { LeadStatus } from "@prisma/client";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
+import { isAiConfigured } from "@/lib/ai";
 import { ROLE_LABELS, ROLE_TO_DEPARTMENT_NAME } from "@/lib/rbac";
 import { STATUS_LABELS } from "@/components/status-badge";
 import { StatCard, SectionCard, EmptyState, Badge } from "@/components/ui";
@@ -190,9 +191,15 @@ export default async function DashboardHome() {
                 <span className="text-xs font-semibold uppercase tracking-wider text-brand-300">
                   AI Sales Copilot & Omnichannel Hub
                 </span>
-                <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
-                  Active
-                </span>
+                {isAiConfigured() ? (
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+                    AI on
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-[10px] font-semibold text-slate-300 ring-1 ring-slate-400/30">
+                    Built-in rules
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-sm font-medium text-slate-200">
                 You have <span className="font-bold text-white">{openCount} active deals</span> in pipeline valued at{" "}

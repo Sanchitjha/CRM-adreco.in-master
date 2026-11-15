@@ -9,9 +9,10 @@ import { AiLeadAdvisor, type AiLeadAdvisorProps } from "@/components/ai/ai-lead-
 export async function LeadAdviceSection({
   aiInput,
   ...advisor
-}: { aiInput: LeadForAi } & Omit<AiLeadAdvisorProps, "insight" | "canRefresh">) {
+}: { aiInput: LeadForAi } & Omit<AiLeadAdvisorProps, "insight" | "canRefresh" | "closed">) {
   const insight = await getLeadInsight(aiInput);
-  return <AiLeadAdvisor {...advisor} insight={insight} canRefresh={isAiConfigured() && !isClosedStatus(aiInput.status)} />;
+  const closed = isClosedStatus(aiInput.status);
+  return <AiLeadAdvisor {...advisor} insight={insight} canRefresh={isAiConfigured() && !closed} closed={closed} />;
 }
 
 /** Shown in the card's place while the advice is being worked out. */

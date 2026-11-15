@@ -306,6 +306,21 @@ describe("normalizeAdvice", () => {
     expect(draft?.messageTemplate).toBe("Hello {{name}}, from about {{name}} and {{name}}.");
   });
 
+  it("also turns the other ways of writing the customer's name into the placeholder, and leaves other brackets alone", () => {
+    const write = (whatsappMessage: string) => normalizeAdvice({ ...goodAnswer, whatsappMessage })?.messageTemplate;
+    expect(write("Hello [Customer], hi")).toBe("Hello {{name}}, hi");
+    expect(write("Hello [Client's Name], hi")).toBe("Hello {{name}}, hi");
+    expect(write("Hello <customer name>, hi")).toBe("Hello {{name}}, hi");
+    expect(write("Hello [name of the customer], hi")).toBe("Hello {{name}}, hi");
+    expect(write("Hello {{customer_name}}, hi")).toBe("Hello , hi");
+    expect(write("Hello {{name}}, call [phone] or see [Option A] (and <b>)")).toBe("Hello {{name}}, call [phone] or see [Option A] (and <b>)");
+  });
+
+  it("reads High and Medium as the model's way of saying Urgent and Normal", () => {
+    expect(normalizeAdvice({ ...goodAnswer, urgency: "High" })?.urgency).toBe("Urgent");
+    expect(normalizeAdvice({ ...goodAnswer, urgency: " medium " })?.urgency).toBe("Normal");
+  });
+
   it("flattens line breaks and control characters", () => {
     const draft = normalizeAdvice({ ...goodAnswer, summary: "Line one.\n\nLine\u0007 two.\t" });
     expect(draft?.summary).toBe("Line one. Line two.");
@@ -567,6 +582,15 @@ describe("requestAdvice", () => {
     const down = vi.fn().mockRejectedValue(new Error("getaddrinfo ENOTFOUND"));
     const result = await requestAdvice(gemini, facts, { fetchImpl: asFetch(down) });
     expect(!result.ok && result.reason).toContain("could not be reached");
+  });
+
+  it("reports a time-out that happens while the answer is still arriving as a time-out", async () => {
+    const slowBody = Object.assign(new Error("The operation timed out"), { name: "TimeoutError" });
+    const midAnswer = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => Promise.reject(slowBody) });
+    expect(await requestAdvice(gemini, facts, { fetchImpl: asFetch(midAnswer), timeoutMs: 20_000 })).toEqual({
+      ok: false,
+      reason: "No answer within 20 seconds.",
+    });
   });
 
   it("reports a blocked or empty answer", async () => {

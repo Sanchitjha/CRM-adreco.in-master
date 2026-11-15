@@ -67,6 +67,11 @@ describe("parseColumnAnswer", () => {
     expect([...map]).toEqual([[0, "customerName"]]);
   });
 
+  it("reads a bare list of entries, and an index written as text", () => {
+    const list = parseColumnAnswer([{ index: 0, field: "customerName" }, { index: "1", field: "phone" }, { index: "x", field: "email" }], 3);
+    expect([...list]).toEqual([[0, "customerName"], [1, "phone"]]);
+  });
+
   it("returns nothing for an answer in the wrong shape", () => {
     expect(parseColumnAnswer(null, 3).size).toBe(0);
     expect(parseColumnAnswer({ columns: "x" }, 3).size).toBe(0);

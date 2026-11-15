@@ -40,7 +40,9 @@ export default async function LeadsPage({
       assignedTo: true,
       followUps: { select: { id: true, followUpDate: true }, orderBy: { followUpDate: "desc" }, take: 1 },
       siteSurveys: { select: { id: true }, take: 1 },
-      quotations: { select: { id: true, grandTotal: true }, take: 1 },
+      quotations: { select: { id: true, grandTotal: true }, orderBy: { createdAt: "desc" }, take: 1 },
+      // The newest follow-up is all that is loaded above, so the number of them is counted here. The score needs it.
+      _count: { select: { followUps: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -63,6 +65,7 @@ export default async function LeadsPage({
       hasSurvey: l.siteSurveys.length > 0,
       hasQuotation: l.quotations.length > 0,
       quotationAmount: l.quotations[0] ? Number(l.quotations[0].grandTotal) : null,
+      followUpCount: l._count.followUps,
       lastFollowUpDaysAgo: daysSinceFollowUp,
     });
 
@@ -77,7 +80,7 @@ export default async function LeadsPage({
       createdAt: l.createdAt.toISOString(),
       assignedToName: l.assignedTo?.name ?? null,
       assignedToId: l.assignedToId,
-      followUpCount: l.followUps.length,
+      followUpCount: l._count.followUps,
       lastFollowUpDaysAgo: daysSinceFollowUp,
       hasSurvey: l.siteSurveys.length > 0,
       hasQuotation: l.quotations.length > 0,
