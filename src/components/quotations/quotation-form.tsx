@@ -1,15 +1,30 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import Link from "next/link";
+import { useActionState, useState, type ClipboardEvent } from "react";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
-import { createQuotation } from "@/app/(dashboard)/quotations/actions";
+import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotations/actions";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
-import { addCatalogLine, type CatalogProduct, type QuoteRow } from "@/lib/quotation-lines";
+import { addCatalogLine, applyPastedRows, parsePastedRows, type CatalogProduct, type QuoteRow } from "@/lib/quotation-lines";
 import { formatINR } from "@/lib/utils";
 
 type LeadOption = { id: string; customerName: string };
 type Row = QuoteRow;
+
+/** A saved quotation being changed: everything the form starts from, as text. */
+export type ExistingQuotation = {
+  id: string;
+  quoteNumber: string;
+  validUntil: string; // yyyy-mm-dd, or ""
+  discountPct: string;
+  gstPct: string;
+  installationCharge: string;
+  transportCharge: string;
+  notes: string;
+  terms: string;
+  rows: QuoteRow[];
+};
 
 const catalogLabel = (p: CatalogProduct) =>
   `${p.name} (${p.modelCode}) — ${p.customerPrice === null ? "no price set" : formatINR(p.customerPrice)}`;
@@ -19,24 +34,27 @@ const num = (v: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
-export function NewQuotationForm({
+export function QuotationForm({
   leads,
   products = [],
   lockedLeadId,
   lockedSurveyId,
+  existing,
 }: {
   leads: LeadOption[];
   /** Active catalog products to pick line items from; empty hides the picker. */
   products?: CatalogProduct[];
   lockedLeadId?: string;
   lockedSurveyId?: string;
+  /** Given when a saved quotation is being changed; the form then saves over it instead of making a new one. */
+  existing?: ExistingQuotation;
 }) {
-  const [state, formAction, pending] = useActionState(createQuotation, INITIAL_ACTION_STATE);
-  const [rows, setRows] = useState<Row[]>([{ description: "", quantity: "1", unitPrice: "" }]);
-  const [discountPct, setDiscountPct] = useState("0");
-  const [gstPct, setGstPct] = useState("18");
-  const [installation, setInstallation] = useState("");
-  const [transport, setTransport] = useState("");
+  const [state, formAction, pending] = useActionState(existing ? updateQuotation : createQuotation, INITIAL_ACTION_STATE);
+  const [rows, setRows] = useState<Row[]>(existing?.rows.length ? existing.rows : [{ description: "", quantity: "1", unitPrice: "" }]);
+  const [discountPct, setDiscountPct] = useState(existing?.discountPct ?? "0");
+  const [gstPct, setGstPct] = useState(existing?.gstPct ?? "18");
+  const [installation, setInstallation] = useState(existing?.installationCharge ?? "");
+  const [transport, setTransport] = useState(existing?.transportCharge ?? "");
 
   const lockedLead = lockedLeadId ? leads.find((l) => l.id === lockedLeadId) : undefined;
 
@@ -70,6 +88,13 @@ export function NewQuotationForm({
   function removeRow(i: number) {
     setRows((rs) => (rs.length === 1 ? rs : rs.filter((_, idx) => idx !== i)));
   }
+  /** A row copied from a spreadsheet or table (cells separated by tabs) fills the row's own boxes instead of one long text. */
+  function pasteIntoDescription(i: number, e: ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = parsePastedRows(e.clipboardData.getData("text"));
+    if (!pasted) return;
+    e.preventDefault();
+    setRows((rs) => applyPastedRows(rs, i, pasted));
+  }
   function addFromCatalog(productId: string) {
     const product = products.find((p) => p.id === productId);
     if (product) setRows((rs) => addCatalogLine(rs, product));
@@ -81,6 +106,7 @@ export function NewQuotationForm({
   return (
     <form action={formAction} className="space-y-8">
       <input type="hidden" name="itemsJson" value={itemsJson} />
+      {existing && <input type="hidden" name="quoteId" value={existing.id} />}
       {lockedSurveyId && <input type="hidden" name="siteSurveyId" value={lockedSurveyId} />}
 
       {/* Lead */}
@@ -111,7 +137,7 @@ export function NewQuotationForm({
           <label htmlFor="validUntil" className="label">
             Valid until
           </label>
-          <input id="validUntil" name="validUntil" type="date" className="input" />
+          <input id="validUntil" name="validUntil" type="date" className="input" defaultValue={existing?.validUntil ?? ""} />
         </div>
       </div>
 
@@ -177,12 +203,14 @@ export function NewQuotationForm({
                   key={i}
                   className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-[1fr_84px_120px_120px_36px] sm:items-center"
                 >
-                  <input
+                  <textarea
                     aria-label="Description"
-                    className="input py-1.5"
+                    rows={2}
+                    className="textarea py-1.5"
                     placeholder="e.g. EVI Heat Pump 30 kW (supply + install)"
                     value={r.description}
                     onChange={(e) => updateRow(i, { description: e.target.value })}
+                    onPaste={(e) => pasteIntoDescription(i, e)}
                   />
                   <input
                     aria-label="Quantity"
@@ -307,13 +335,27 @@ export function NewQuotationForm({
           <label htmlFor="notes" className="label">
             Notes
           </label>
-          <textarea id="notes" name="notes" rows={3} className="textarea" placeholder="Scope of supply, recommended system…" />
+          <textarea
+            id="notes"
+            name="notes"
+            rows={3}
+            className="textarea"
+            placeholder="Scope of supply, recommended system…"
+            defaultValue={existing?.notes ?? ""}
+          />
         </div>
         <div>
           <label htmlFor="terms" className="label">
             Terms
           </label>
-          <textarea id="terms" name="terms" rows={3} className="textarea" placeholder="Payment terms, warranty, validity…" />
+          <textarea
+            id="terms"
+            name="terms"
+            rows={3}
+            className="textarea"
+            placeholder="Payment terms, warranty, validity…"
+            defaultValue={existing?.terms ?? ""}
+          />
         </div>
       </div>
 
@@ -326,8 +368,13 @@ export function NewQuotationForm({
 
       <div className="flex items-center gap-3 border-t border-[var(--border)] pt-4">
         <button type="submit" disabled={pending} className="btn btn-primary">
-          {pending ? "Saving…" : "Save quotation"}
+          {pending ? "Saving…" : existing ? "Save changes" : "Save quotation"}
         </button>
+        {existing && (
+          <Link href={`/quotations/${existing.id}`} className="btn btn-secondary">
+            Cancel
+          </Link>
+        )}
       </div>
     </form>
   );

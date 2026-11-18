@@ -18,3 +18,8 @@ export function canSeeQuotation(
   if (role === "ADMIN" || role === "DESIGN") return true;
   return role === "SALES" && (quote.createdById === userId || quote.lead.assignedToId === userId);
 }
+
+/** Who may change a quotation's lines and charges: administrators, design engineers, and whoever wrote it. */
+export function canEditQuotation(role: Role, userId: string, quote: { createdById: string }): boolean {
+  return role === "ADMIN" || role === "DESIGN" || quote.createdById === userId;
+}

@@ -12,6 +12,7 @@ import { AMC_STATE } from "@/lib/statuses";
 import { formatINR } from "@/lib/utils";
 import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { CustomerLink, DataTable, FilterTabs, StatusPill } from "@/components/page-kit";
+import { HowItWorks } from "@/components/how-it-works";
 
 type SearchParams = { view?: string };
 
@@ -75,6 +76,23 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
           ) : undefined
         }
       />
+
+      <HowItWorks title="How AMC contracts work">
+        <p>
+          <strong className="font-medium text-slate-800">Making a contract:</strong> press New contract, choose the customer, tick
+          the machines it covers (only machines already dispatched to that customer are listed), then enter the start and end dates,
+          the number of visits a year, the amount and the parts covered. The CRM lays out the visit dates for you.
+        </p>
+        <p>
+          <strong className="font-medium text-slate-800">During the year:</strong> open the contract to mark each visit done, skip
+          it or move it to another date. Machines cannot be on two active contracts for the same dates.
+        </p>
+        <p>
+          <strong className="font-medium text-slate-800">At the end:</strong> contracts ending within 60 days appear under
+          &ldquo;Renewals due&rdquo; (and in the daily reminders). Press Renew on the contract to start the next one from the old
+          one. A machine whose warranty is about to end (see Warranty, Expiring soon) is the best time to offer an AMC.
+        </p>
+      </HowItWorks>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="Active contracts" value={countOf("active")} icon={CircleCheck} accent="emerald" href="/amc?view=active" />

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canAccessQuotations } from "@/lib/rbac";
@@ -40,11 +40,16 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
   const companyAddress = [company?.address, [company?.city, company?.state, company?.pincode].filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(", ");
+  const missingOnLetterhead = [
+    ...(company?.logoUrl ? [] : ["the company logo"]),
+    ...(companyAddress ? [] : ["the company address"]),
+  ];
   const companyContact = [company?.phone, company?.email, company?.website].filter(Boolean).join("  ·  ");
 
   return (
     <div className="mx-auto max-w-[210mm]">
-      <style>{"@page { size: A4; margin: 14mm; }"}</style>
+      {/* The letterhead is the table's header group, which the browser repeats at the top of every printed page. */}
+      <style>{`@page { size: A4; margin: 14mm 14mm 16mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 9px; color: #64748b; } }`}</style>
 
       <div className="mb-4 flex items-center justify-between print:hidden">
         <Link href={`/quotations/${quote.id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
@@ -54,7 +59,31 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
         <PrintButton />
       </div>
 
-      <article className="space-y-6 rounded-lg bg-white p-8 text-sm text-slate-800 shadow-sm print:rounded-none print:p-0 print:shadow-none">
+      {missingOnLetterhead.length > 0 && (
+        <p className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <span>
+            This quotation will print without {missingOnLetterhead.join(" and ")}.{" "}
+            {role === "ADMIN" ? (
+              <>
+                Add {missingOnLetterhead.length > 1 ? "them" : "it"} in{" "}
+                <Link href="/settings" className="font-medium underline underline-offset-2">
+                  Settings, Company profile
+                </Link>
+                , then reload this page.
+              </>
+            ) : (
+              `Ask an administrator to add ${missingOnLetterhead.length > 1 ? "them" : "it"} in Settings, Company profile.`
+            )}
+          </span>
+        </p>
+      )}
+
+      <article className="rounded-lg bg-white p-8 text-sm text-slate-800 shadow-sm print:rounded-none print:p-0 print:shadow-none">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <td className="pb-6 align-top">
         <header className="flex flex-col items-start justify-between gap-4 border-b-2 border-slate-800 pb-4 sm:flex-row sm:gap-6 print:flex-row print:gap-6">
           <div>
             {company?.logoUrl && (
@@ -78,7 +107,13 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
             )}
           </div>
         </header>
-
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="align-top">
+        <div className="space-y-6">
         <section className="grid gap-6 sm:grid-cols-2 print:grid-cols-2">
           <div>
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Prepared for</h2>
@@ -107,7 +142,7 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
           </thead>
           <tbody>
             {quote.items.map((item, index) => (
-              <tr key={item.id} className="border-b border-slate-200 align-top">
+              <tr key={item.id} className="break-inside-avoid border-b border-slate-200 align-top">
                 <td className="px-2 py-2 text-slate-500">{index + 1}</td>
                 <td className="px-2 py-2 whitespace-pre-line">{item.description}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{item.quantity}</td>
@@ -119,7 +154,7 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
         </table>
         </div>
 
-        <section className="flex flex-col gap-4 sm:flex-row sm:justify-between print:flex-row print:justify-between">
+        <section className="flex break-inside-avoid flex-col gap-4 sm:flex-row sm:justify-between print:flex-row print:justify-between">
           <p className="max-w-xs text-xs text-slate-600">
             <span className="font-semibold text-slate-700">Amount in words: </span>
             {amountInWords(totals.grandTotal)}
@@ -163,13 +198,18 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
           </section>
         )}
 
-        <footer className="flex items-end justify-between border-t border-slate-200 pt-10 text-xs text-slate-600">
+        <footer className="flex break-inside-avoid items-end justify-between border-t border-slate-200 pt-10 text-xs text-slate-600">
           <p>This is a computer-generated quotation.</p>
           <div className="text-right">
             <p className="mb-8">For {companyName}</p>
             <p className="border-t border-slate-400 pt-1">Authorised signatory</p>
           </div>
         </footer>
+        </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </article>
     </div>
   );

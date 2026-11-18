@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canSeeLead, canSeeQuotation, leadScope } from "@/lib/scope";
+import { canEditQuotation, canSeeLead, canSeeQuotation, leadScope } from "@/lib/scope";
 
 describe("leadScope", () => {
   it("limits a sales rep to their own leads", () => {
@@ -43,5 +43,20 @@ describe("canSeeLead", () => {
   it("lets everyone else see any lead", () => {
     expect(canSeeLead("SERVICE", "u1", { assignedToId: "u2" })).toBe(true);
     expect(canSeeLead("ADMIN", "u1", { assignedToId: null })).toBe(true);
+  });
+});
+
+describe("canEditQuotation", () => {
+  const quote = { createdById: "writer" };
+
+  it("lets admins, design engineers and the person who wrote it change a quotation", () => {
+    expect(canEditQuotation("ADMIN", "x", quote)).toBe(true);
+    expect(canEditQuotation("DESIGN", "x", quote)).toBe(true);
+    expect(canEditQuotation("SALES", "writer", quote)).toBe(true);
+  });
+
+  it("keeps everyone else from changing it", () => {
+    expect(canEditQuotation("SALES", "someone-else", quote)).toBe(false);
+    expect(canEditQuotation("ACCOUNTS", "someone-else", quote)).toBe(false);
   });
 });
