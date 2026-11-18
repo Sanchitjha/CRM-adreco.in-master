@@ -11,7 +11,8 @@ export function formatINR(value: number | string | null | undefined): string {
   if (value === null || value === undefined || value === "") return "—";
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return "—";
-  return `₹${n.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+  // Whole rupees stay "₹7,000"; an amount with paise always shows both decimals ("₹20,537.10", not "₹20,537.1").
+  return `₹${n.toLocaleString("en-IN", { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 })}`;
 }
 
 /** Two-letter initials for avatars, e.g. "Asha Rao" -> "AR". */

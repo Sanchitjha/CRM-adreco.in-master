@@ -1,11 +1,19 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import Link from "next/link";
 import { Plus, Trash2, TriangleAlert } from "lucide-react";
-import { createQuotation } from "@/app/(dashboard)/quotations/actions";
+import { createQuotation, updateQuotation } from "@/app/(dashboard)/quotations/actions";
 import { INITIAL_ACTION_STATE } from "@/lib/action-state";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
-import { addCatalogLine, type CatalogProduct, type QuoteRow } from "@/lib/quotation-lines";
+import {
+  addCatalogLine,
+  insertPastedRows,
+  parsePastedRows,
+  tidyRow,
+  type CatalogProduct,
+  type QuoteRow,
+} from "@/lib/quotation-lines";
 import { formatINR } from "@/lib/utils";
 
 type LeadOption = { id: string; customerName: string };
@@ -19,28 +27,46 @@ const num = (v: string) => {
   return Number.isFinite(n) ? n : 0;
 };
 
+/** A saved quotation, as the form holds it while it is being edited (everything is text until it is sent). */
+export type EditableQuote = {
+  id: string;
+  leadId: string;
+  validUntil: string;
+  discountPct: string;
+  gstPct: string;
+  installationCharge: string;
+  transportCharge: string;
+  notes: string;
+  terms: string;
+  items: QuoteRow[];
+};
+
 export function NewQuotationForm({
   leads,
   products = [],
   lockedLeadId,
   lockedSurveyId,
+  quote,
 }: {
   leads: LeadOption[];
   /** Active catalog products to pick line items from; empty hides the picker. */
   products?: CatalogProduct[];
   lockedLeadId?: string;
   lockedSurveyId?: string;
+  /** Set to edit this saved quotation instead of creating a new one. */
+  quote?: EditableQuote;
 }) {
-  const [state, formAction, pending] = useActionState(createQuotation, INITIAL_ACTION_STATE);
-  const [rows, setRows] = useState<Row[]>([{ description: "", quantity: "1", unitPrice: "" }]);
-  const [discountPct, setDiscountPct] = useState("0");
-  const [gstPct, setGstPct] = useState("18");
-  const [installation, setInstallation] = useState("");
-  const [transport, setTransport] = useState("");
+  const editing = !!quote;
+  const [state, formAction, pending] = useActionState(editing ? updateQuotation : createQuotation, INITIAL_ACTION_STATE);
+  const [rows, setRows] = useState<Row[]>(quote?.items.length ? quote.items : [{ description: "", quantity: "1", unitPrice: "" }]);
+  const [discountPct, setDiscountPct] = useState(quote?.discountPct ?? "0");
+  const [gstPct, setGstPct] = useState(quote?.gstPct ?? "18");
+  const [installation, setInstallation] = useState(quote?.installationCharge ?? "");
+  const [transport, setTransport] = useState(quote?.transportCharge ?? "");
 
-  const lockedLead = lockedLeadId ? leads.find((l) => l.id === lockedLeadId) : undefined;
+  const lockedLead = (quote?.leadId ?? lockedLeadId) ? leads.find((l) => l.id === (quote?.leadId ?? lockedLeadId)) : undefined;
 
-  const parsedItems = rows.map((r) => ({
+  const parsedItems = rows.map(tidyRow).map((r) => ({
     description: r.description,
     quantity: num(r.quantity),
     unitPrice: num(r.unitPrice),
@@ -67,6 +93,17 @@ export function NewQuotationForm({
   function addRow() {
     setRows((rs) => [...rs, { description: "", quantity: "1", unitPrice: "" }]);
   }
+  // Text copied from a spreadsheet carries its unit, quantity, rate and amount columns. Put those in their own
+  // boxes instead of leaving "SET 1 7000 7000" at the end of the description.
+  function pasteIntoRow(i: number, event: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const pasted = parsePastedRows(event.clipboardData.getData("text"));
+    if (!pasted) return;
+    event.preventDefault();
+    setRows((rs) => insertPastedRows(rs, i, pasted));
+  }
+  function tidyDescription(i: number) {
+    setRows((rs) => rs.map((r, idx) => (idx === i ? tidyRow(r) : r)));
+  }
   function removeRow(i: number) {
     setRows((rs) => (rs.length === 1 ? rs : rs.filter((_, idx) => idx !== i)));
   }
@@ -81,7 +118,8 @@ export function NewQuotationForm({
   return (
     <form action={formAction} className="space-y-8">
       <input type="hidden" name="itemsJson" value={itemsJson} />
-      {lockedSurveyId && <input type="hidden" name="siteSurveyId" value={lockedSurveyId} />}
+      {lockedSurveyId && !editing && <input type="hidden" name="siteSurveyId" value={lockedSurveyId} />}
+      {quote && <input type="hidden" name="quoteId" value={quote.id} />}
 
       {/* Lead */}
       <div className="grid gap-4 sm:grid-cols-2">
@@ -111,7 +149,7 @@ export function NewQuotationForm({
           <label htmlFor="validUntil" className="label">
             Valid until
           </label>
-          <input id="validUntil" name="validUntil" type="date" className="input" />
+          <input id="validUntil" name="validUntil" type="date" className="input" defaultValue={quote?.validUntil ?? ""} />
         </div>
       </div>
 
@@ -177,12 +215,15 @@ export function NewQuotationForm({
                   key={i}
                   className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-[1fr_84px_120px_120px_36px] sm:items-center"
                 >
-                  <input
+                  <textarea
                     aria-label="Description"
-                    className="input py-1.5"
+                    rows={2}
+                    className="textarea py-1.5"
                     placeholder="e.g. EVI Heat Pump 30 kW (supply + install)"
                     value={r.description}
                     onChange={(e) => updateRow(i, { description: e.target.value })}
+                    onPaste={(e) => pasteIntoRow(i, e)}
+                    onBlur={() => tidyDescription(i)}
                   />
                   <input
                     aria-label="Quantity"
@@ -307,13 +348,27 @@ export function NewQuotationForm({
           <label htmlFor="notes" className="label">
             Notes
           </label>
-          <textarea id="notes" name="notes" rows={3} className="textarea" placeholder="Scope of supply, recommended system…" />
+          <textarea
+            id="notes"
+            name="notes"
+            rows={3}
+            className="textarea"
+            placeholder="Scope of supply, recommended system…"
+            defaultValue={quote?.notes ?? ""}
+          />
         </div>
         <div>
           <label htmlFor="terms" className="label">
             Terms
           </label>
-          <textarea id="terms" name="terms" rows={3} className="textarea" placeholder="Payment terms, warranty, validity…" />
+          <textarea
+            id="terms"
+            name="terms"
+            rows={3}
+            className="textarea"
+            placeholder="Payment terms, warranty, validity…"
+            defaultValue={quote?.terms ?? ""}
+          />
         </div>
       </div>
 
@@ -326,8 +381,13 @@ export function NewQuotationForm({
 
       <div className="flex items-center gap-3 border-t border-[var(--border)] pt-4">
         <button type="submit" disabled={pending} className="btn btn-primary">
-          {pending ? "Saving…" : "Save quotation"}
+          {pending ? "Saving…" : editing ? "Save changes" : "Save quotation"}
         </button>
+        {editing && (
+          <Link href={`/quotations/${quote.id}`} className="btn btn-secondary">
+            Cancel
+          </Link>
+        )}
       </div>
     </form>
   );

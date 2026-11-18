@@ -23,32 +23,71 @@ export type DuplicateLead = {
   phone: string;
   status: string;
   ownerName: string | null;
+  /** In plain words, what the new lead has in common with this one, e.g. "Phone 98550 84749 is saved as a contact on this lead (Rohit, Owner)". */
+  reasons: string[];
 };
 
-/** Existing leads that share this phone number or email address, including a number saved as another contact. */
+type PhoneHit = {
+  leadId: string;
+  phone: string;
+  contactName: string | null;
+  contactRole: string | null;
+  /** "lead" when it is the lead's own number, "contact" when it belongs to another person saved on the lead. */
+  source: "lead" | "contact";
+};
+
+/** Says why a number matched: the lead's own, or a person saved under the lead (the owner, the site in-charge...). */
+export function describePhoneMatch(hit: Pick<PhoneHit, "phone" | "contactName" | "contactRole" | "source">): string {
+  if (hit.source === "lead") return `Same phone number (${hit.phone}) as this lead's own number`;
+  const who = [hit.contactName, hit.contactRole].filter(Boolean).join(", ");
+  return `Phone ${hit.phone} is saved as a contact on this lead${who ? ` (${who})` : ""}`;
+}
+
+export function describeEmailMatch(email: string): string {
+  return `Same email address (${email}) as this lead`;
+}
+
+/**
+ * Existing leads that share this phone number or email address, including a number saved as another contact. Each
+ * lead says what matched, so the person can tell a real repeat enquiry from a coincidence.
+ */
 export async function findDuplicateLeads(phone: string, email?: string | null): Promise<DuplicateLead[]> {
   const key = phoneKey(phone);
 
   // Numbers are stored as typed ("+91 98765 43210", "98765-43210"), so compare digits only, in the database.
-  const samePhone =
+  const phoneHits =
     key.length >= MIN_KEY_DIGITS
-      ? await prisma.$queryRaw<{ id: string }[]>`
-          SELECT "id" FROM "Lead"
+      ? await prisma.$queryRaw<PhoneHit[]>`
+          SELECT "id" AS "leadId", "phone", NULL::text AS "contactName", NULL::text AS "contactRole", 'lead'::text AS "source"
+          FROM "Lead"
           WHERE RIGHT(REGEXP_REPLACE("phone", '[^0-9]', '', 'g'), 10) = ${key}
-          UNION
-          SELECT "leadId" AS "id" FROM "LeadContact"
+          UNION ALL
+          SELECT "leadId", "phone", "name" AS "contactName", "role" AS "contactRole", 'contact'::text AS "source"
+          FROM "LeadContact"
           WHERE "phone" IS NOT NULL AND RIGHT(REGEXP_REPLACE("phone", '[^0-9]', '', 'g'), 10) = ${key}
-          LIMIT 25`
+          LIMIT 50`
       : [];
 
-  const or = [
-    ...(samePhone.length > 0 ? [{ id: { in: samePhone.map((r) => r.id) } }] : []),
-    ...(email ? [{ email: { equals: email.trim(), mode: "insensitive" as const } }] : []),
-  ];
-  if (or.length === 0) return [];
+  const emailMatches = email
+    ? await prisma.lead.findMany({
+        where: { email: { equals: email.trim(), mode: "insensitive" } },
+        select: { id: true, email: true },
+        take: 25,
+      })
+    : [];
+
+  const reasonsByLead = new Map<string, string[]>();
+  const addReason = (leadId: string, reason: string) => {
+    const list = reasonsByLead.get(leadId) ?? [];
+    if (!list.includes(reason)) list.push(reason);
+    reasonsByLead.set(leadId, list);
+  };
+  for (const hit of phoneHits) addReason(hit.leadId, describePhoneMatch(hit));
+  for (const m of emailMatches) addReason(m.id, describeEmailMatch(m.email ?? email ?? ""));
+  if (reasonsByLead.size === 0) return [];
 
   const matches = await prisma.lead.findMany({
-    where: { OR: or },
+    where: { id: { in: [...reasonsByLead.keys()] } },
     select: { id: true, customerName: true, phone: true, status: true, assignedTo: { select: { name: true } } },
     orderBy: { createdAt: "desc" },
     take: 5,
@@ -60,5 +99,6 @@ export async function findDuplicateLeads(phone: string, email?: string | null): 
     phone: l.phone,
     status: l.status,
     ownerName: l.assignedTo?.name ?? null,
+    reasons: reasonsByLead.get(l.id) ?? [],
   }));
 }

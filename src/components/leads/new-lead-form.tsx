@@ -193,7 +193,7 @@ export function NewLeadForm({
             <TriangleAlert className="size-4 shrink-0" />
             {state.error}
           </p>
-          <ul className="mt-2 space-y-1 text-sm text-amber-900">
+          <ul className="mt-2 space-y-2 text-sm text-amber-900">
             {duplicates.map((d) => (
               <li key={d.id}>
                 <Link href={`/leads/${d.id}`} target="_blank" className="font-medium underline underline-offset-2">
@@ -201,11 +201,22 @@ export function NewLeadForm({
                 </Link>{" "}
                 · {d.phone} · {d.status.replace("_", " ").toLowerCase()}
                 {d.ownerName ? ` · owned by ${d.ownerName}` : " · unassigned"}
+                {/* The lead's own name and number can look nothing like the new one when the match is a contact saved under it. */}
+                {d.reasons.length > 0 && (
+                  <ul className="mt-0.5 list-disc space-y-0.5 pl-5 text-xs text-amber-800">
+                    {d.reasons.map((reason) => (
+                      <li key={reason}>
+                        <span className="font-medium">Matched because:</span> {reason}
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </li>
             ))}
           </ul>
           <p className="mt-2 text-xs text-amber-800">
-            Open the existing lead and add a follow-up there, or create this one anyway if it is a different enquiry.
+            Nothing has been linked or saved yet. Open the existing lead and add a follow-up there, or create this one
+            anyway if it is a different enquiry.
           </p>
           <button type="button" onClick={createAnyway} disabled={pending} className="btn btn-secondary btn-sm mt-3">
             Create anyway

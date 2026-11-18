@@ -12,6 +12,7 @@ import { AMC_STATE } from "@/lib/statuses";
 import { formatINR } from "@/lib/utils";
 import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { CustomerLink, DataTable, FilterTabs, StatusPill } from "@/components/page-kit";
+import { ProcessGuide } from "@/components/lifecycle/process-guide";
 
 type SearchParams = { view?: string };
 
@@ -74,6 +75,32 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
             </Link>
           ) : undefined
         }
+      />
+
+      <ProcessGuide
+        title="How AMC works here"
+        intro="An annual maintenance contract covers specific machines, and its preventive visits are scheduled for you."
+        steps={[
+          {
+            title: "The machines must be on record first",
+            body: "A contract can only cover machines that are with the customer (dispatched, installed or commissioned). Machines sold before the CRM are added under Serial numbers.",
+            link: { href: "/serial-numbers/new", label: "Register existing machine" },
+          },
+          {
+            title: "Create the contract",
+            body: "Choose the customer, tick the machines, then set the start and end dates, the visits per year and the amount. The visits are spread evenly over the term.",
+            link: canManage(user.role, "amc") ? { href: "/amc/new", label: "New contract" } : undefined,
+          },
+          {
+            title: "Record each visit",
+            body: "Open the contract and mark every visit done (with the technician), moved to another date, or skipped. Done visits show as “Visits done” in this list.",
+          },
+          {
+            title: "Renew before it ends",
+            body: `Contracts ending within ${Math.max(...RENEWAL_REMINDER_DAYS)} days appear under “Renewals due”. “Renew contract” starts the next term for the same machines the day after.`,
+            link: { href: "/amc?view=renewals", label: "Show renewals due" },
+          },
+        ]}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">

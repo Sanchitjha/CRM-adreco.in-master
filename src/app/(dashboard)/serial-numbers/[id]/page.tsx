@@ -187,7 +187,18 @@ export default async function SerialDetailPage({ params }: { params: Promise<{ i
             )}
           </SectionCard>
 
-          <SectionCard title="Maintenance contracts" icon={CalendarClock} bodyClassName="p-0">
+          <SectionCard
+            title="Maintenance contracts"
+            icon={CalendarClock}
+            bodyClassName="p-0"
+            action={
+              canManage(user.role, "amc") && serial.lead && ["DISPATCHED", "INSTALLED", "COMMISSIONED"].includes(serial.status) ? (
+                <Link href={`/amc/new?leadId=${serial.lead.id}`} className="btn btn-secondary btn-sm">
+                  Add AMC
+                </Link>
+              ) : undefined
+            }
+          >
             {serial.amcUnits.length === 0 ? (
               <p className="px-5 py-4 text-sm text-slate-400">Not covered by an AMC.</p>
             ) : (

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft, FileText, ExternalLink, ClipboardCheck, Printer, ShoppingCart } from "lucide-react";
+import { ArrowLeft, FileText, ExternalLink, ClipboardCheck, Pencil, Printer, ShoppingCart } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canAccessQuotations, canManage, canView as canViewModule } from "@/lib/rbac";
@@ -79,6 +79,12 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
             label="Send on WhatsApp"
           />
           <QuoteStatusBadge status={quote.status} />
+          {canEdit && !quote.salesOrder && (
+            <Link href={`/quotations/${quote.id}/edit`} className="btn btn-primary btn-sm">
+              <Pencil className="size-3.5" />
+              Edit quotation
+            </Link>
+          )}
           <Link href={`/quotations/${quote.id}/print`} target="_blank" className="btn btn-secondary btn-sm">
             <Printer className="size-3.5" />
             Print / PDF

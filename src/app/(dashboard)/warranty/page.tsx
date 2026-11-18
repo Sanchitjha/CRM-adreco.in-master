@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { CalendarX2, CircleCheck, FileWarning, Hourglass, Plus, ShieldCheck } from "lucide-react";
+import { CalendarX2, CircleCheck, FileWarning, Hourglass, Plus, ScanBarcode, ShieldCheck } from "lucide-react";
 import { requireUser } from "@/lib/action-auth";
 import { prisma } from "@/lib/db";
 import { canManage, canView } from "@/lib/rbac";
@@ -10,6 +10,7 @@ import { EXPIRING_SOON_DAYS, addDaysUtc, daysBetween, warrantyState } from "@/li
 import { CLAIM_STATUS, WARRANTY_STATE } from "@/lib/statuses";
 import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { CustomerLink, DataTable, FilterTabs, StatusPill } from "@/components/page-kit";
+import { ProcessGuide } from "@/components/lifecycle/process-guide";
 
 type SearchParams = { view?: string };
 
@@ -41,7 +42,12 @@ export default async function WarrantyPage({ searchParams }: { searchParams: Pro
       ? Promise.resolve([])
       : prisma.serialNumber.findMany({
           where: { ...scope, ...unitWhere[view] },
-          include: { product: true, lead: true },
+          include: {
+            product: true,
+            lead: true,
+            // An AMC that is running today, so the list can say "Under AMC" instead of offering another one.
+            amcUnits: { where: { amc: { status: "ACTIVE", endDate: { gte: todayDate } } }, select: { amcId: true } },
+          },
           orderBy: { warrantyEndsOn: "asc" },
           take: 300,
         }),
@@ -66,13 +72,48 @@ export default async function WarrantyPage({ searchParams }: { searchParams: Pro
         title="Warranty"
         description="Never miss an expiry — or an opportunity."
         actions={
-          canManage(user.role, "warranty") ? (
-            <Link href="/warranty/claims/new" className="btn btn-primary">
-              <Plus className="size-4" />
-              New claim
-            </Link>
-          ) : undefined
+          <>
+            {canManage(user.role, "serials") && (
+              <Link href="/serial-numbers/new" className="btn btn-secondary">
+                <ScanBarcode className="size-4" />
+                Register existing machine
+              </Link>
+            )}
+            {canManage(user.role, "warranty") && (
+              <Link href="/warranty/claims/new" className="btn btn-primary">
+                <Plus className="size-4" />
+                New claim
+              </Link>
+            )}
+          </>
         }
+      />
+
+      <ProcessGuide
+        title="How warranty works here"
+        intro="Warranty is tracked for each machine (each serial number), not for the customer."
+        steps={[
+          {
+            title: "It starts by itself at commissioning",
+            body: "When the installation team completes commissioning for a machine, its warranty starts that day and runs for the months set on the product.",
+            link: { href: "/commissioning", label: "Open commissioning" },
+          },
+          {
+            title: "Machines sold before the CRM",
+            body: "Register the serial number, pick the customer and enter the “Commissioned on” date. The warranty end date is worked out from it.",
+            link: canManage(user.role, "serials") ? { href: "/serial-numbers/new", label: "Register existing machine" } : undefined,
+          },
+          {
+            title: "Wrong date, or a goodwill extension",
+            body: "An administrator opens the machine under Serial numbers and uses “Warranty dates” to correct or extend it. The change is logged.",
+            link: { href: "/serial-numbers", label: "Open serial numbers" },
+          },
+          {
+            title: "Before it ends, offer an AMC",
+            body: `Machines whose warranty ends within ${EXPIRING_SOON_DAYS} days are listed under “Expiring soon”. Use “Add AMC” on the row to start a maintenance contract.`,
+            link: { href: "/warranty?view=expiring", label: "Show expiring machines" },
+          },
+        ]}
       />
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -162,6 +203,25 @@ export default async function WarrantyPage({ searchParams }: { searchParams: Pro
               cell: (u) => (u.warrantyEndsOn ? <span className="tabular-nums">{daysBetween(todayDate, u.warrantyEndsOn)}</span> : "—"),
             },
             { header: "Status", cell: (u) => <StatusPill meta={WARRANTY_STATE[warrantyState(u.warrantyEndsOn, todayDate)]} /> },
+            ...(canManage(user.role, "amc") || canView(user.role, "amc")
+              ? [
+                  {
+                    header: "AMC",
+                    cell: (u: (typeof units)[number]) =>
+                      u.amcUnits.length > 0 ? (
+                        <Link href={`/amc/${u.amcUnits[0].amcId}`} className="text-xs font-medium text-emerald-700 hover:underline">
+                          Under AMC
+                        </Link>
+                      ) : u.lead && canManage(user.role, "amc") ? (
+                        <Link href={`/amc/new?leadId=${u.lead.id}`} className="text-xs font-medium text-brand-600 hover:text-brand-700">
+                          Add AMC →
+                        </Link>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      ),
+                  },
+                ]
+              : []),
           ]}
         />
       )}

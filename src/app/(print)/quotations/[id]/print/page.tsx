@@ -1,11 +1,13 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, TriangleAlert } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/db";
 import { canAccessQuotations } from "@/lib/rbac";
 import { canSeeQuotation } from "@/lib/scope";
 import { getCompanyProfile } from "@/lib/settings";
+import { formatCompanyAddress, listMissing, missingCompanyDetails } from "@/lib/company-profile";
+import { canView } from "@/lib/rbac";
 import { amountInWords } from "@/lib/amount-in-words";
 import { formatDate } from "@/lib/dates";
 import { formatINR } from "@/lib/utils";
@@ -37,14 +39,22 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
   });
 
   const companyName = company?.tradeName || company?.legalName || "Adreco Engineering Pvt Ltd";
-  const companyAddress = [company?.address, [company?.city, company?.state, company?.pincode].filter(Boolean).join(", ")]
-    .filter(Boolean)
-    .join(", ");
+  const companyAddress = formatCompanyAddress(company);
+  const missingDetails = missingCompanyDetails(company);
   const companyContact = [company?.phone, company?.email, company?.website].filter(Boolean).join("  ·  ");
 
   return (
     <div className="mx-auto max-w-[210mm]">
-      <style>{"@page { size: A4; margin: 14mm; }"}</style>
+      {/* A table's header group is printed again at the top of every page, so the logo and company address are on each one. */}
+      <style>{`
+        @page { size: A4; margin: 14mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 9px; color: #64748b; } }
+        @media print {
+          thead.page-head { display: table-header-group; }
+          tfoot.page-foot { display: table-footer-group; }
+          tr.keep-together { break-inside: avoid; }
+          .keep-together { break-inside: avoid; }
+        }
+      `}</style>
 
       <div className="mb-4 flex items-center justify-between print:hidden">
         <Link href={`/quotations/${quote.id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
@@ -54,21 +64,54 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
         <PrintButton />
       </div>
 
-      <article className="space-y-6 rounded-lg bg-white p-8 text-sm text-slate-800 shadow-sm print:rounded-none print:p-0 print:shadow-none">
-        <header className="flex flex-col items-start justify-between gap-4 border-b-2 border-slate-800 pb-4 sm:flex-row sm:gap-6 print:flex-row print:gap-6">
-          <div>
-            {company?.logoUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logoUrl} alt="" className="mb-2 h-14 w-auto max-w-[220px] object-contain" />
+      {missingDetails.length > 0 && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 print:hidden" role="alert">
+          <TriangleAlert className="mt-0.5 size-4 shrink-0" />
+          <p>
+            The company {listMissing(missingDetails)} {missingDetails.length > 1 ? "are" : "is"} not set up yet, so{" "}
+            {missingDetails.length > 1 ? "they do" : "it does"} not print on this quotation.{" "}
+            {canView(role, "settings") ? (
+              <>
+                Add {missingDetails.length > 1 ? "them" : "it"} under{" "}
+                <Link href="/settings" className="font-medium underline underline-offset-2">
+                  Settings → Company profile
+                </Link>{" "}
+                and {missingDetails.length > 1 ? "they appear" : "it appears"} on every page.
+              </>
+            ) : (
+              <>Ask an administrator to add {missingDetails.length > 1 ? "them" : "it"} under Settings → Company profile.</>
             )}
-            <h1 className="text-xl font-bold tracking-tight">{company?.legalName || companyName}</h1>
-            {companyAddress && <p className="mt-1 max-w-sm text-xs text-slate-600">{companyAddress}</p>}
-            {companyContact && <p className="text-xs text-slate-600">{companyContact}</p>}
-            {company?.gstin && <p className="text-xs text-slate-600">GSTIN: {company.gstin}</p>}
-          </div>
-          <div className="sm:text-right print:text-right">
-            <p className="text-lg font-semibold uppercase tracking-wider">Quotation</p>
-            <p className="mt-1 font-mono text-sm">{quote.quoteNumber}</p>
+          </p>
+        </div>
+      )}
+
+      <article className="rounded-lg bg-white p-8 text-sm text-slate-800 shadow-sm print:rounded-none print:p-0 print:shadow-none">
+        <table className="w-full border-collapse">
+          <thead className="page-head">
+            <tr>
+              <td className="pb-4">
+                <header className="flex items-center gap-4 border-b-2 border-slate-800 pb-3">
+                  {company?.logoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={company.logoUrl} alt="" className="h-14 w-auto max-w-[220px] shrink-0 object-contain" />
+                  )}
+                  <div>
+                    <h1 className="text-xl font-bold tracking-tight">{company?.legalName || companyName}</h1>
+                    {companyAddress && <p className="mt-0.5 max-w-md text-xs text-slate-600">{companyAddress}</p>}
+                    {companyContact && <p className="text-xs text-slate-600">{companyContact}</p>}
+                    {company?.gstin && <p className="text-xs text-slate-600">GSTIN: {company.gstin}</p>}
+                  </div>
+                </header>
+              </td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td className="space-y-6 align-top">
+        <section className="flex items-start justify-between gap-6">
+          <p className="text-lg font-semibold uppercase tracking-wider">Quotation</p>
+          <div className="text-right">
+            <p className="font-mono text-sm">{quote.quoteNumber}</p>
             <p className="text-xs text-slate-600">Date: {formatDate(quote.createdAt)}</p>
             {quote.validUntil && <p className="text-xs text-slate-600">Valid until: {formatDate(quote.validUntil)}</p>}
             {quote.status === "DRAFT" && (
@@ -77,7 +120,7 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
               </p>
             )}
           </div>
-        </header>
+        </section>
 
         <section className="grid gap-6 sm:grid-cols-2 print:grid-cols-2">
           <div>
@@ -107,7 +150,7 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
           </thead>
           <tbody>
             {quote.items.map((item, index) => (
-              <tr key={item.id} className="border-b border-slate-200 align-top">
+              <tr key={item.id} className="keep-together border-b border-slate-200 align-top">
                 <td className="px-2 py-2 text-slate-500">{index + 1}</td>
                 <td className="px-2 py-2 whitespace-pre-line">{item.description}</td>
                 <td className="px-2 py-2 text-right tabular-nums">{item.quantity}</td>
@@ -170,6 +213,10 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
             <p className="border-t border-slate-400 pt-1">Authorised signatory</p>
           </div>
         </footer>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </article>
     </div>
   );
