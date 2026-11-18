@@ -201,11 +201,17 @@ export function NewLeadForm({
                 </Link>{" "}
                 · {d.phone} · {d.status.replace("_", " ").toLowerCase()}
                 {d.ownerName ? ` · owned by ${d.ownerName}` : " · unassigned"}
+                {d.reasons.map((reason) => (
+                  <span key={reason} className="block text-xs text-amber-800">
+                    Why it matched: {reason}
+                  </span>
+                ))}
               </li>
             ))}
           </ul>
           <p className="mt-2 text-xs text-amber-800">
-            Open the existing lead and add a follow-up there, or create this one anyway if it is a different enquiry.
+            The phone number or email you typed is already saved on the lead above. Open it and add a follow-up there, or create this one
+            anyway if it is a different enquiry. Nothing is linked or changed until you choose.
           </p>
           <button type="button" onClick={createAnyway} disabled={pending} className="btn btn-secondary btn-sm mt-3">
             Create anyway

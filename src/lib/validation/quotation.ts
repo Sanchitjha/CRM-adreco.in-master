@@ -36,6 +36,11 @@ export const createQuotationSchema = z.object({
   itemsJson: z.string().min(1, "Add at least one line item"),
 });
 
+/** Changing a saved quotation: the same fields as a new one, except that its lead and survey stay as they were. */
+export const updateQuotationSchema = createQuotationSchema
+  .omit({ leadId: true, siteSurveyId: true })
+  .extend({ quoteId: z.string().min(1) });
+
 export const updateQuoteStatusSchema = z.object({
   quoteId: z.string().min(1),
   status: z.enum(QUOTE_STATUS_VALUES),

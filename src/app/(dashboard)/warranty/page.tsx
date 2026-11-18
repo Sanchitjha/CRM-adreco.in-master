@@ -10,6 +10,7 @@ import { EXPIRING_SOON_DAYS, addDaysUtc, daysBetween, warrantyState } from "@/li
 import { CLAIM_STATUS, WARRANTY_STATE } from "@/lib/statuses";
 import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { CustomerLink, DataTable, FilterTabs, StatusPill } from "@/components/page-kit";
+import { HowItWorks } from "@/components/how-it-works";
 
 type SearchParams = { view?: string };
 
@@ -74,6 +75,25 @@ export default async function WarrantyPage({ searchParams }: { searchParams: Pro
           ) : undefined
         }
       />
+
+      <HowItWorks title="How warranty works">
+        <p>
+          <strong className="font-medium text-slate-800">It starts by itself.</strong> Every product in the catalogue has a warranty
+          period (Products, open a product, Warranty months). When the installation team completes commissioning for a machine, its
+          warranty starts that day and ends after the product&rsquo;s period. Nobody types the dates in.
+        </p>
+        <p>
+          <strong className="font-medium text-slate-800">Machines installed before the CRM:</strong> add them under Serial numbers,
+          Register, with the commissioning date. An administrator can correct a machine&rsquo;s warranty dates on its serial number
+          page.
+        </p>
+        <p>
+          <strong className="font-medium text-slate-800">When the customer complains:</strong> the service team raises a ticket, then
+          a claim here (New claim) for a machine that is still in warranty. An administrator approves or rejects it, and the
+          service team marks it resolved. Dispatched machines that are not commissioned yet wait under &ldquo;Awaiting
+          commissioning&rdquo;.
+        </p>
+      </HowItWorks>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <StatCard label="In warranty" value={activeCount} icon={CircleCheck} accent="emerald" href="/warranty?view=active" />
