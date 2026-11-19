@@ -316,3 +316,146 @@
     background-size: 22px 22px;
   }
 }
+
+/* ============================================================================
+   Phones and tablets
+   ========================================================================== */
+
+/* Touch: no delay or accidental double-tap zoom on controls, and a soft tap colour instead of the grey flash. */
+a,
+button,
+input,
+select,
+textarea,
+summary,
+label {
+  touch-action: manipulation;
+}
+html {
+  -webkit-tap-highlight-color: rgba(13, 148, 136, 0.14);
+}
+
+/* On a phone with a notch the page keeps clear of it when turned sideways. */
+body {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
+@media (max-width: 767px) {
+  /* An iPhone zooms the whole page when a box with text smaller than 16px gets the cursor, and does not zoom back.
+     16px stops that. It is forced, because a few boxes set a smaller size of their own. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="file"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* A finger is bigger than a mouse pointer: buttons and boxes get a comfortable height (44px is Apple's minimum). */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 2.75rem;
+  }
+  .btn-sm {
+    min-height: 2.5rem;
+  }
+  .input,
+  .select {
+    min-height: 2.75rem;
+  }
+  .nav-link {
+    min-height: 2.75rem;
+  }
+  summary {
+    min-height: 2.75rem;
+  }
+}
+
+/* Lists as cards: below 640px a table (class "data-table", each cell labelled with its column) turns into one card per
+   row, so nothing has to be scrolled sideways. */
+@media (max-width: 639px) {
+  .data-table,
+  .data-table tbody,
+  .data-table tr,
+  .data-table td {
+    display: block;
+  }
+  .data-table {
+    min-width: 0 !important;
+  }
+  .data-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+  .data-table tbody tr {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table tbody tr:last-child {
+    border-bottom: 0;
+  }
+  /* Each cell is a label on the left and its content on the right. A grid (not a row of flex items) keeps a cell that
+     holds several things, such as a name with an email under it, as one stack on the right. */
+  .data-table td {
+    display: grid;
+    grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+    column-gap: 0.75rem;
+    align-items: baseline;
+    padding: 0.2rem 0 !important;
+    text-align: right !important;
+    min-width: 0;
+    max-width: none;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .data-table td::before {
+    content: attr(data-label);
+    grid-column: 1;
+    grid-row: 1 / span 12;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--text-subtle);
+    text-align: left;
+  }
+  /* (Not the title cell: it is a plain block, and "justify-self" would push its content to the right.) */
+  .data-table td:not(:first-child):not([colspan]) > * {
+    grid-column: 2;
+    justify-self: end;
+    min-width: 0;
+    max-width: 100%;
+  }
+  /* The first cell is the card's title: it needs no label and runs the full width. */
+  .data-table td:first-child {
+    display: block;
+    text-align: left !important;
+    font-size: 0.9375rem;
+    padding-bottom: 0.35rem !important;
+  }
+  .data-table td:first-child::before {
+    display: none;
+  }
+  /* A name or number that opens a record gets a taller tap area (a text line alone is only 20 px high). */
+  .data-table td a:not(.btn) {
+    padding-block: 0.625rem;
+    margin-block: -0.3rem;
+  }
+  /* An empty-list message spans the whole row: it is not a card of its own. */
+  .data-table td[colspan] {
+    display: block;
+    padding: 0 !important;
+    text-align: initial !important;
+    font-size: inherit;
+    font-weight: inherit;
+  }
+  .data-table tbody tr:has(> td[colspan]) {
+    padding: 0;
+  }
+  /* A cell with nothing to say takes no room. */
+  .data-table td:empty {
+    display: none;
+  }
+}

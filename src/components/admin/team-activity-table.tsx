@@ -8,7 +8,7 @@ export function TeamActivityTable({ report }: { report: TeamReport }) {
 
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
+      <table className="data-table min-w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
             <th className="px-5 py-3 font-medium text-slate-500">Person</th>
@@ -21,11 +21,11 @@ export function TeamActivityTable({ report }: { report: TeamReport }) {
         <tbody className="divide-y divide-[var(--border)]">
           {report.employees.map((e) => (
             <tr key={e.userId} className="align-top hover:bg-slate-50/70">
-              <td className="px-5 py-3">
+              <td className="px-5 py-3" data-label="Person">
                 <p className="font-medium text-slate-800">{e.name}</p>
                 <p className="text-xs text-slate-400">{e.roleLabel}</p>
               </td>
-              <td className="px-5 py-3">
+              <td className="px-5 py-3" data-label="What they did">
                 {e.idle ? (
                   <Badge tone="danger">No activity</Badge>
                 ) : (
@@ -39,15 +39,15 @@ export function TeamActivityTable({ report }: { report: TeamReport }) {
                   </>
                 )}
               </td>
-              <td className="whitespace-nowrap px-5 py-3 text-slate-600">
+              <td className="whitespace-nowrap px-5 py-3 text-slate-600" data-label="Last activity">
                 {e.lastActivityAt ? (week ? formatDateTime(e.lastActivityAt) : formatTime(e.lastActivityAt)) : "—"}
               </td>
-              <td className="px-5 py-3 text-center">
+              <td className="px-5 py-3 text-center" data-label="Overdue follow-ups">
                 <span className={e.overdueFollowUps > 0 ? "font-semibold text-rose-600" : "text-slate-400"}>
                   {e.overdueFollowUps}
                 </span>
               </td>
-              <td className="px-5 py-3 text-center">
+              <td className="px-5 py-3 text-center" data-label="Overdue tasks">
                 <span className={e.overdueTasks > 0 ? "font-semibold text-rose-600" : "text-slate-400"}>
                   {e.overdueTasks}
                 </span>

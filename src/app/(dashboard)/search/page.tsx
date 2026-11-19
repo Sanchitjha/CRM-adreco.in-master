@@ -61,7 +61,7 @@ export default async function SearchPage({ searchParams }: { searchParams: Promi
           <EmptyState icon={Search} title="Nothing matched" description="Check the spelling, or try part of a phone number or document number." />
         </SectionCard>
       ) : (
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {groups
             .filter((g) => g.hits.length > 0)
             .map((g) => (

@@ -41,7 +41,7 @@ export default async function QuotationsPage() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="data-table min-w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                 <th className="px-5 py-3 font-medium text-slate-500">Quote #</th>
@@ -66,25 +66,25 @@ export default async function QuotationsPage() {
               ) : (
                 quotes.map((q) => (
                   <tr key={q.id} className="transition hover:bg-slate-50/70">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3" data-label="Quote #">
                       <Link href={`/quotations/${q.id}`} className="font-medium text-slate-800 hover:text-brand-600">
                         {q.quoteNumber}
                       </Link>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3" data-label="Customer">
                       <div className="flex items-center gap-3">
                         <Avatar name={q.lead.customerName} />
                         <span className="text-slate-700">{q.lead.customerName}</span>
                       </div>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3" data-label="Status">
                       <QuoteStatusBadge status={q.status} />
                     </td>
-                    <td className="px-5 py-3 text-right font-medium tabular-nums text-slate-800">
+                    <td className="px-5 py-3 text-right font-medium tabular-nums text-slate-800" data-label="Amount">
                       {formatINR(Number(q.grandTotal))}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">{q.createdBy.name}</td>
-                    <td className="px-5 py-3 text-right text-slate-400">
+                    <td className="px-5 py-3 text-slate-600" data-label="Prepared by">{q.createdBy.name}</td>
+                    <td className="px-5 py-3 text-right text-slate-400" data-label="Date">
                       {q.createdAt.toLocaleDateString("en-IN")}
                     </td>
                   </tr>

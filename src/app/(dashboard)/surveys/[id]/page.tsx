@@ -45,7 +45,7 @@ export default async function SurveyDetailPage({ params }: { params: Promise<{ i
 
   return (
     <div className="space-y-6">
-      <Link href="/surveys" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/surveys" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
         <ArrowLeft className="size-4" />
         Back to surveys
       </Link>
@@ -88,7 +88,7 @@ export default async function SurveyDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard title="Requirement" icon={ClipboardCheck}>
             <dl className="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-3">
@@ -105,7 +105,7 @@ export default async function SurveyDetailPage({ params }: { params: Promise<{ i
               <Row label="Site address" value={survey.siteAddress} />
             </dl>
             {(survey.pipingDetails || survey.storageTank) && (
-              <div className="mt-4 grid gap-4 border-t border-[var(--border)] pt-4 sm:grid-cols-2">
+              <div className="mt-4 grid grid-cols-1 gap-4 border-t border-[var(--border)] pt-4 sm:grid-cols-2">
                 {survey.pipingDetails && (
                   <div>
                     <dt className="text-xs text-slate-400">Piping details</dt>

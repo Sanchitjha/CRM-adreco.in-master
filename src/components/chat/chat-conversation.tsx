@@ -179,7 +179,7 @@ export function ChatConversation({
             </p>
           )}
           <p className="whitespace-pre-wrap break-words">{message.body}</p>
-          <p className={cn("mt-1 text-right text-[10px]", mine ? "text-white/70" : "text-slate-400")}>
+          <p className={cn("mt-1 text-right text-[11px]", mine ? "text-white/70" : "text-slate-400")}>
             {formatTime(message.createdAt)}
           </p>
         </div>
@@ -196,7 +196,7 @@ export function ChatConversation({
             <Link
               href={backHref}
               aria-label="Back to conversations"
-              className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 md:hidden"
+              className="flex size-8 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 pointer-coarse:size-10 md:hidden"
             >
               <ArrowLeft className="size-4" />
             </Link>

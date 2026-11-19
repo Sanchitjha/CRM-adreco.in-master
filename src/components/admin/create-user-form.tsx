@@ -10,7 +10,7 @@ export function CreateUserForm() {
   const [state, formAction, pending] = useActionState(createUser, INITIAL_ACTION_STATE);
 
   return (
-    <form action={formAction} className="grid gap-4 sm:grid-cols-2">
+    <form action={formAction} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
       <div>
         <label className="label" htmlFor="name">
           Name

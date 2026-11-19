@@ -12,7 +12,7 @@ export default async function ImportLeadsPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
         <ArrowLeft className="size-4" />
         Back to leads
       </Link>
@@ -29,7 +29,7 @@ export default async function ImportLeadsPage() {
         }
       />
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Card className="p-6">
           <ImportLeadsForm admin={role === "ADMIN"} />
         </Card>

@@ -47,19 +47,19 @@ export function AiLeadAdvisor({
       <div className="pointer-events-none absolute -right-8 -top-8 size-36 rounded-full bg-brand-400/10 blur-2xl" />
 
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-brand-100/60 pb-3.5">
-        <div className="flex items-center gap-2.5">
-          <span className="flex size-8 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2.5 border-b border-brand-100/60 pb-3.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-brand-600 text-white shadow-sm">
             <Sparkles className="size-4" />
           </span>
-          <div>
+          <div className="min-w-0">
             <h3 className="text-sm font-semibold text-slate-900">AI Deal Copilot & Strategic Advisor</h3>
             <p className="text-xs text-slate-500">Autonomous sales intelligence for Adreco heat pumps</p>
           </div>
         </div>
 
-        {/* Win Probability Pill */}
-        <div className="flex items-center gap-2">
+        {/* Win Probability Pill: on a phone it drops under the title instead of squeezing it */}
+        <div className="flex shrink-0 items-center gap-2">
           <span className="text-xs text-slate-500">Win Probability:</span>
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-xs font-bold ring-1 ring-inset ${
@@ -77,7 +77,7 @@ export function AiLeadAdvisor({
       </div>
 
       {/* Body Grid */}
-      <div className="mt-4 grid gap-4 sm:grid-cols-4">
+      <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-4">
         {/* Score column */}
         <div className="flex flex-col items-center justify-center rounded-xl border border-slate-100 bg-white/90 p-4 text-center shadow-xs">
           <span className="text-xs font-medium text-slate-400">Deal Score</span>
@@ -85,7 +85,7 @@ export function AiLeadAdvisor({
             <span className="text-3xl font-extrabold tracking-tight text-slate-900">{insight.score}</span>
             <span className="text-xs font-medium text-slate-400">/100</span>
           </div>
-          <span className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[10px] font-semibold ring-1 ring-inset ${scoreColor}`}>
+          <span className={`mt-1.5 inline-block rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ring-inset ${scoreColor}`}>
             {closed ? "Closed" : insight.urgency === "Urgent" ? "Action Needed" : "On Track"}
           </span>
         </div>
@@ -109,7 +109,7 @@ export function AiLeadAdvisor({
 
       {/* 1-Click AI drafted WhatsApp message */}
       <div className="mt-4 rounded-xl border border-red-200/80 bg-white p-3.5 shadow-xs">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <MessageSquare className="size-4 fill-red-500/20 text-red-600" />
             <span className="text-xs font-semibold text-slate-800">

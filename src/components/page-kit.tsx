@@ -9,7 +9,10 @@ import type { StatusMeta } from "@/lib/statuses";
 
 export function BackLink({ href, label }: { href: string; label: string }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+    <Link
+      href={href}
+      className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10"
+    >
       <ArrowLeft className="size-4" />
       {label}
     </Link>
@@ -50,7 +53,7 @@ export function FilterTabs({
           key={t.label}
           href={t.href}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition",
+            "inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-sm font-medium transition pointer-coarse:min-h-10",
             t.active
               ? "border-brand-600 bg-brand-600 text-white"
               : "border-[var(--border-strong)] bg-white text-slate-600 hover:bg-slate-50",
@@ -115,7 +118,7 @@ export function DataTable<T>({
   return (
     <div className="card overflow-hidden">
       <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
+        <table className="data-table min-w-full text-sm">
           <thead>
             <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
               {columns.map((c) => (
@@ -141,6 +144,7 @@ export function DataTable<T>({
                   {columns.map((c) => (
                     <td
                       key={c.header}
+                      data-label={c.header}
                       className={cn("px-5 py-3 text-slate-600", c.align === "right" && "text-right", c.className)}
                     >
                       {c.cell(row)}

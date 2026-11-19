@@ -106,6 +106,20 @@ competitor fields; a **duplicate
 warning** when a lead is created twice; and a printable, branded **quotation** (Print / Save as PDF)
 with the amount in words.
 
+**Machines installed before the CRM:** under Warranty, *Add existing installation* records one customer's machines
+(model, capacity in kW, how many, installation date, the warranty period and, if there is one, the AMC with its yearly
+charge), and *Import from Excel* does a whole list: the file is checked first and only then imported, hotels of one group
+in different cities stay separate customers, and importing the same file twice adds nothing. Serial numbers are
+optional (a reference number is generated). Such customers are listed under Leads, Existing customers, and are left out
+of the sales pipeline, dashboard and reports. A machine (*Edit machine*) and an AMC contract (*Edit contract*) can be
+corrected afterwards; a machine that came through a sales order keeps its model and customer locked. The warranty and
+AMC pages search by customer, city, model or group name.
+
+**On a phone:** the CRM works in the browser of an iPhone or an Android phone: lists turn into one card per row, boxes
+are sized so an iPhone does not zoom in, buttons are touch-sized and the layout keeps clear of the notch. It can be added
+to the home screen so it opens full screen with its own icon (iPhone: Share, then Add to Home Screen; Android Chrome:
+Install app).
+
 **Team chat and email:** employees talk to each other inside the CRM with the same sign-in (private messages, a
 channel for everyone and one for each department, and a discussion on every lead that only the people who can open
 that lead can see). Administrators can read every conversation, private ones included; everyone is told so on screen,

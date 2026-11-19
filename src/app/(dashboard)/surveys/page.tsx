@@ -41,7 +41,7 @@ export default async function SurveysPage() {
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="data-table min-w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                 <th className="px-5 py-3 font-medium text-slate-500">Customer</th>
@@ -72,7 +72,7 @@ export default async function SurveysPage() {
                     : "—";
                   return (
                     <tr key={s.id} className="transition hover:bg-slate-50/70">
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3" data-label="Customer">
                         <div className="flex items-center gap-3">
                           <Avatar name={s.lead.customerName} />
                           <Link href={`/surveys/${s.id}`} className="font-medium text-slate-800 hover:text-brand-600">
@@ -80,13 +80,13 @@ export default async function SurveysPage() {
                           </Link>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{s.application}</td>
-                      <td className="px-5 py-3 text-slate-600">{rec}</td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 text-slate-600" data-label="Application">{s.application}</td>
+                      <td className="px-5 py-3 text-slate-600" data-label="Recommended">{rec}</td>
+                      <td className="px-5 py-3" data-label="Status">
                         <SurveyStatusBadge status={s.status} />
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{s.surveyedBy.name}</td>
-                      <td className="px-5 py-3 text-right text-slate-400">
+                      <td className="px-5 py-3 text-slate-600" data-label="Surveyed by">{s.surveyedBy.name}</td>
+                      <td className="px-5 py-3 text-right text-slate-400" data-label="Date">
                         {s.surveyDate.toLocaleDateString("en-IN")}
                       </td>
                     </tr>

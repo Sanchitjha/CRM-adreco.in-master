@@ -181,7 +181,7 @@ export function ChatSidebar({
                                 : (channel.subtitle ?? "No messages yet")}
                             </span>
                             {channel.unread > 0 && (
-                              <span className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-heat-500 px-1.5 text-[10px] font-semibold leading-5 text-white">
+                              <span className="flex min-w-5 shrink-0 items-center justify-center rounded-full bg-heat-500 px-1.5 text-[11px] font-semibold leading-5 text-white">
                                 {channel.unread > 99 ? "99+" : channel.unread}
                               </span>
                             )}

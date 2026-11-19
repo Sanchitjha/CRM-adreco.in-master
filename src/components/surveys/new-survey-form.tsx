@@ -40,7 +40,7 @@ export function NewSurveyForm({ leads, lockedLeadId }: { leads: LeadOption[]; lo
     <form action={formAction} className="space-y-8">
       {/* Lead + application */}
       <section className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="leadId" className="label">
               Lead / customer <span className="text-rose-500">*</span>
@@ -85,7 +85,7 @@ export function NewSurveyForm({ leads, lockedLeadId }: { leads: LeadOption[]; lo
       {/* Requirement */}
       <section>
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Requirement</h3>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Required water temp" name="requiredTempC" type="number" suffix="°C" placeholder="55" />
           <Field label="Ambient temp" name="ambientTempC" type="number" suffix="°C" placeholder="12" />
           <Field label="Daily hot-water demand" name="dailyDemandL" type="number" suffix="L/day" placeholder="5000" />
@@ -120,7 +120,7 @@ export function NewSurveyForm({ leads, lockedLeadId }: { leads: LeadOption[]; lo
           </div>
           <Field label="Existing system" name="existingSystem" placeholder="e.g. Electric geyser, boiler" />
         </div>
-        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+        <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="pipingDetails" className="label">
               Piping details
@@ -139,7 +139,7 @@ export function NewSurveyForm({ leads, lockedLeadId }: { leads: LeadOption[]; lo
       {/* Recommendation */}
       <section>
         <h3 className="mb-3 text-sm font-semibold text-slate-900">Recommendation</h3>
-        <div className="grid gap-4 sm:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field label="Recommended model" name="recommendedModel" placeholder="e.g. EVI-30" />
           <Field label="Capacity" name="recommendedCapacityKw" type="number" suffix="kW" placeholder="30" />
           <Field label="Quantity" name="recommendedQty" type="number" placeholder="2" />

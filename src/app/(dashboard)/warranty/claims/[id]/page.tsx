@@ -47,7 +47,7 @@ export default async function ClaimDetailPage({ params }: { params: Promise<{ id
         <StatusPill meta={CLAIM_STATUS[claim.status]} />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard title="Claim" icon={ShieldCheck}>
             <h2 className="text-base font-semibold text-slate-900">{claim.issue}</h2>
