@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { CalendarClock, GitCommitVertical, LifeBuoy, ScanBarcode, ShieldCheck, Wrench } from "lucide-react";
+import { CalendarClock, GitCommitVertical, LifeBuoy, Pencil, ScanBarcode, ShieldCheck, Wrench } from "lucide-react";
 import { requireUser } from "@/lib/action-auth";
 import { prisma } from "@/lib/db";
-import { canManage, canView } from "@/lib/rbac";
+import { canEditMachines, canManage, canView } from "@/lib/rbac";
 import { canSeeLead } from "@/lib/scope";
 import { formatDate, toDateInput, today } from "@/lib/dates";
 import { amcState, warrantyState } from "@/lib/lifecycle";
@@ -102,6 +102,12 @@ export default async function SerialDetailPage({ params }: { params: Promise<{ i
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill meta={SERIAL_STATUS[serial.status]} />
           <StatusPill meta={WARRANTY_STATE[wState]} />
+          {canEditMachines(user.role) && serial.status !== "IN_STOCK" && serial.status !== "SCRAPPED" && (
+            <Link href={`/serial-numbers/${serial.id}/edit`} className="btn btn-primary btn-sm">
+              <Pencil className="size-3.5" />
+              Edit machine
+            </Link>
+          )}
           {manage && (serial.status === "IN_STOCK" || serial.status === "SCRAPPED") && (
             <ActionButton
               action={toggleSerialScrapped}
@@ -122,7 +128,7 @@ export default async function SerialDetailPage({ params }: { params: Promise<{ i
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard title="Lifecycle" description="Manufacturing → dispatch → install → commissioning" icon={GitCommitVertical}>
             <ol className="relative space-y-5 pl-6">
@@ -222,6 +228,7 @@ export default async function SerialDetailPage({ params }: { params: Promise<{ i
                   value: serial.lead ? <CustomerLink role={user.role} leadId={serial.lead.id} name={serial.lead.customerName} /> : null,
                 },
                 { label: "Site", value: serial.lead?.address },
+                { label: "Capacity", value: serial.product.heatingCapacityKw ? `${Number(serial.product.heatingCapacityKw)} kW` : null },
                 {
                   label: "Sales order",
                   value: serial.salesOrder && (

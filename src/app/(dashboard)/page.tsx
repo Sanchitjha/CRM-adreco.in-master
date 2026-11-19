@@ -105,7 +105,7 @@ export default async function DashboardHome() {
           <StatCard label="Open tasks" value={myOpenTasks} icon={ClipboardList} accent="slate" href="/tasks" />
         </div>
         <LifecycleStatsRow stats={stats} />
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           <SectionCard
             title={`${departmentName} queue`}
             description="Leads waiting on your team"
@@ -132,7 +132,8 @@ export default async function DashboardHome() {
   }
 
   /* ------------------------------------------------------- Admin / sales rep */
-  const leadWhere = role === "ADMIN" ? {} : { assignedToId: userId };
+  // Existing customers (added from the installed base) are not part of the sales figures.
+  const leadWhere = { existingCustomer: false, ...(role === "ADMIN" ? {} : { assignedToId: userId }) };
 
   const [statusCounts, openLeads] = await Promise.all([
     prisma.lead.groupBy({ by: ["status"], where: leadWhere, _count: { _all: true } }),
@@ -192,11 +193,11 @@ export default async function DashboardHome() {
                   AI Sales Copilot & Omnichannel Hub
                 </span>
                 {isAiConfigured() ? (
-                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[11px] font-semibold text-emerald-300 ring-1 ring-emerald-500/30">
                     AI on
                   </span>
                 ) : (
-                  <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-[10px] font-semibold text-slate-300 ring-1 ring-slate-400/30">
+                  <span className="rounded-full bg-slate-500/20 px-2 py-0.5 text-[11px] font-semibold text-slate-300 ring-1 ring-slate-400/30">
                     Built-in rules
                   </span>
                 )}
@@ -229,7 +230,7 @@ export default async function DashboardHome() {
 
       {role === "ADMIN" && <TeamToday />}
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <SectionCard title="Sales funnel" description="Leads by stage" icon={Waypoints} className="lg:col-span-2">
           <div className="space-y-3.5">
             {funnel.map((f) => {
@@ -257,7 +258,7 @@ export default async function DashboardHome() {
         {tasksWidget}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <SectionCard
           title="Follow-ups due"
           description="Leads needing a touch"

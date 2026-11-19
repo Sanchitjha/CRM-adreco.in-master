@@ -10,11 +10,11 @@ export default async function AdminReportsPage() {
   if (!session?.user || session.user.role !== "ADMIN") redirect("/");
 
   const [totalLeads, statusCounts, salesReps, completedStages, activity] = await Promise.all([
-    prisma.lead.count(),
-    prisma.lead.groupBy({ by: ["status"], _count: { _all: true } }),
+    prisma.lead.count({ where: { existingCustomer: false } }),
+    prisma.lead.groupBy({ by: ["status"], where: { existingCustomer: false }, _count: { _all: true } }),
     prisma.user.findMany({
       where: { role: "SALES" },
-      include: { leadsAssigned: { select: { status: true } } },
+      include: { leadsAssigned: { where: { existingCustomer: false }, select: { status: true } } },
       orderBy: { name: "asc" },
     }),
     prisma.leadDepartmentHistory.findMany({
@@ -69,7 +69,7 @@ export default async function AdminReportsPage() {
           <EmptyState icon={Users} title="No sales reps yet" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="data-table min-w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                   <th className="px-5 py-3 font-medium text-slate-500">Rep</th>
@@ -83,10 +83,10 @@ export default async function AdminReportsPage() {
                   const rate = r.total > 0 ? Math.round((r.converted / r.total) * 100) : 0;
                   return (
                     <tr key={r.name} className="hover:bg-slate-50/70">
-                      <td className="px-5 py-3 font-medium text-slate-800">{r.name}</td>
-                      <td className="px-5 py-3 tabular-nums text-slate-600">{r.total}</td>
-                      <td className="px-5 py-3 tabular-nums text-slate-600">{r.converted}</td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3 font-medium text-slate-800" data-label="Rep">{r.name}</td>
+                      <td className="px-5 py-3 tabular-nums text-slate-600" data-label="Leads">{r.total}</td>
+                      <td className="px-5 py-3 tabular-nums text-slate-600" data-label="Converted">{r.converted}</td>
+                      <td className="px-5 py-3" data-label="Conversion">
                         <div className="flex items-center gap-2">
                           <div className="h-1.5 w-24 overflow-hidden rounded-full bg-slate-100">
                             <div className="h-full rounded-full bg-brand-500" style={{ width: `${rate}%` }} />
@@ -110,7 +110,7 @@ export default async function AdminReportsPage() {
         bodyClassName="p-0"
       >
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="data-table min-w-full text-sm">
             <thead>
               <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                 <th className="px-5 py-3 font-medium text-slate-500">Department</th>
@@ -121,11 +121,11 @@ export default async function AdminReportsPage() {
             <tbody className="divide-y divide-[var(--border)]">
               {turnaround.map((t) => (
                 <tr key={t.name} className="hover:bg-slate-50/70">
-                  <td className="px-5 py-3 font-medium text-slate-800">{t.name}</td>
-                  <td className="px-5 py-3 tabular-nums text-slate-600">
+                  <td className="px-5 py-3 font-medium text-slate-800" data-label="Department">{t.name}</td>
+                  <td className="px-5 py-3 tabular-nums text-slate-600" data-label="Avg days">
                     {t.avgDays !== null ? t.avgDays.toFixed(1) : "—"}
                   </td>
-                  <td className="px-5 py-3 tabular-nums text-slate-600">{t.count}</td>
+                  <td className="px-5 py-3 tabular-nums text-slate-600" data-label="Completed leads">{t.count}</td>
                 </tr>
               ))}
             </tbody>

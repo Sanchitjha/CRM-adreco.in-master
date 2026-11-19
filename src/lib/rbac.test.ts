@@ -5,7 +5,9 @@ import {
   canAccessDepartment,
   canCreate,
   canManage,
+  canEditMachines,
   canManageDealerFinance,
+  canRecordInstalledBase,
   canSeePricing,
   canView,
   isAdmin,
@@ -96,5 +98,18 @@ describe("commercial visibility", () => {
 
   it("treats installation and service as field staff", () => {
     expect(FIELD_ROLES).toEqual(["INSTALLATION", "SERVICE"]);
+  });
+});
+
+describe("canRecordInstalledBase and canEditMachines", () => {
+  it("lets everyone who can already create units, warranties or maintenance contracts record existing installations", () => {
+    for (const role of ["ADMIN", "SALES", "ACCOUNTS", "INSTALLATION", "SERVICE"] as const) expect(canRecordInstalledBase(role)).toBe(true);
+    expect(canRecordInstalledBase("DESIGN")).toBe(false);
+  });
+
+  it("keeps correcting a machine to the roles that manage serial numbers or warranty", () => {
+    for (const role of ["ADMIN", "ACCOUNTS", "INSTALLATION", "SERVICE"] as const) expect(canEditMachines(role)).toBe(true);
+    expect(canEditMachines("SALES")).toBe(false);
+    expect(canEditMachines("DESIGN")).toBe(false);
   });
 });

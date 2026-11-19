@@ -31,7 +31,7 @@ export async function loadTeamReport(kind: ReportKind, now: Date = new Date()): 
         where: { createdAt: { gte: window.start, lt: window.end } },
         _count: { _all: true },
       }),
-      prisma.lead.count({ where: { createdAt: { gte: window.start, lt: window.end } } }),
+      prisma.lead.count({ where: { existingCustomer: false, createdAt: { gte: window.start, lt: window.end } } }),
       prisma.lead.findMany({
         where: { status: { notIn: ["CONVERTED", "LOST"] } },
         select: {

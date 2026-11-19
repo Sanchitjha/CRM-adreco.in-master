@@ -14,14 +14,16 @@ import { generateHeuristicInsight } from "@/lib/ai";
 export default async function LeadsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; view?: string }>;
+  searchParams: Promise<{ q?: string; view?: string; show?: string }>;
 }) {
-  const { q, view } = await searchParams;
-  const isTableView = view === "table";
+  const { q, view, show } = await searchParams;
+  // Customers added from the installed base are kept out of the sales pipeline and listed on their own.
+  const existing = show === "existing";
+  const isTableView = existing || view === "table";
   const session = await auth();
   const role = session!.user.role;
 
-  const scope: Prisma.LeadWhereInput = role === "ADMIN" ? {} : { assignedToId: session!.user.id };
+  const scope: Prisma.LeadWhereInput = { existingCustomer: existing, ...(role === "ADMIN" ? {} : { assignedToId: session!.user.id }) };
   const search: Prisma.LeadWhereInput = q
     ? {
         OR: [
@@ -96,15 +98,36 @@ export default async function LeadsPage({
     <div className="space-y-6">
       <PageHeader
         icon={Contact}
-        title="Leads & Sales Pipeline"
-        description="Pipeline management, WhatsApp omnichannel chat and an AI lead advisor."
+        title={existing ? "Existing customers" : "Leads & Sales Pipeline"}
+        description={
+          existing
+            ? "Customers added from the installed base, with machines and warranty. They are not part of the sales pipeline or its figures."
+            : "Pipeline management, WhatsApp omnichannel chat and an AI lead advisor."
+        }
         actions={
-          <div className="flex items-center gap-2">
-            {/* View Switcher */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Pipeline or existing customers */}
             <div className="flex items-center rounded-lg border border-[var(--border)] bg-slate-100 p-0.5 text-xs font-semibold">
               <Link
                 href={`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
+                className={`rounded-md px-2.5 py-1.5 pointer-coarse:py-2.5 transition ${!existing ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`}
+              >
+                Sales pipeline
+              </Link>
+              <Link
+                href={`/leads?show=existing${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+                className={`rounded-md px-2.5 py-1.5 pointer-coarse:py-2.5 transition ${existing ? "bg-white text-slate-900 shadow-xs" : "text-slate-500 hover:text-slate-900"}`}
+              >
+                Existing customers
+              </Link>
+            </div>
+
+            {/* View Switcher */}
+            {!existing && (
+            <div className="flex items-center rounded-lg border border-[var(--border)] bg-slate-100 p-0.5 text-xs font-semibold">
+              <Link
+                href={`/leads${q ? `?q=${encodeURIComponent(q)}` : ""}`}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 pointer-coarse:py-2.5 transition ${
                   !isTableView
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-500 hover:text-slate-900"
@@ -115,7 +138,7 @@ export default async function LeadsPage({
               </Link>
               <Link
                 href={`/leads?view=table${q ? `&q=${encodeURIComponent(q)}` : ""}`}
-                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 transition ${
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 pointer-coarse:py-2.5 transition ${
                   isTableView
                     ? "bg-white text-slate-900 shadow-xs"
                     : "text-slate-500 hover:text-slate-900"
@@ -125,6 +148,7 @@ export default async function LeadsPage({
                 <span>List</span>
               </Link>
             </div>
+            )}
 
             {(role === "ADMIN" || role === "SALES") && (
               <>
@@ -170,7 +194,7 @@ export default async function LeadsPage({
       ) : (
         <Card className="overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="data-table min-w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                   <th className="px-5 py-3 font-medium text-slate-500">Customer</th>
@@ -196,7 +220,7 @@ export default async function LeadsPage({
                 ) : (
                   leads.map((lead) => (
                     <tr key={lead.id} className="transition hover:bg-slate-50/70">
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3" data-label="Customer">
                         <div className="flex items-center gap-3">
                           <Avatar name={lead.customerName} />
                           <div className="min-w-0">
@@ -207,7 +231,7 @@ export default async function LeadsPage({
                           </div>
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">
+                      <td className="px-5 py-3 text-slate-600" data-label="Phone">
                         <div className="flex items-center gap-2">
                           <span>{lead.phone}</span>
                           <WhatsAppAction
@@ -220,19 +244,19 @@ export default async function LeadsPage({
                           />
                         </div>
                       </td>
-                      <td className="px-5 py-3 text-slate-600">{lead.productCategory ?? "—"}</td>
-                      <td className="px-5 py-3 font-semibold text-slate-800">
+                      <td className="px-5 py-3 text-slate-600" data-label="Category">{lead.productCategory ?? "—"}</td>
+                      <td className="px-5 py-3 font-semibold text-slate-800" data-label="Budget">
                         {lead.budget ? formatINR(Number(lead.budget)) : "—"}
                       </td>
-                      <td className="px-5 py-3">
+                      <td className="px-5 py-3" data-label="Status">
                         <StatusBadge status={lead.status} />
                       </td>
                       {role === "ADMIN" && (
-                        <td className="px-5 py-3 text-slate-600">
+                        <td className="px-5 py-3 text-slate-600" data-label="Assigned to">
                           {lead.assignedTo?.name ?? <span className="text-slate-400">Unassigned</span>}
                         </td>
                       )}
-                      <td className="px-5 py-3 text-right text-slate-400">
+                      <td className="px-5 py-3 text-right text-slate-400" data-label="Created">
                         {lead.createdAt.toLocaleDateString("en-IN")}
                       </td>
                     </tr>

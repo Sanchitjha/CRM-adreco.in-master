@@ -19,3 +19,17 @@ export const updateSerialSchema = z.object({
 });
 
 export const serialIdSchema = z.object({ serialId: z.string().min(1) });
+
+/** Correcting a machine's details: its serial number, model, customer, dates and notes. */
+export const updateMachineSchema = z.object({
+  serialId: z.string().min(1),
+  serialNo: z.string().trim().min(1, "Enter the serial number").max(80, "The serial number is too long"),
+  productId: optionalText,
+  leadId: optionalText,
+  installedAt: optionalDateString,
+  commissionedAt: optionalDateString,
+  warrantyStartsOn: optionalDateString,
+  warrantyEndsOn: optionalDateString,
+  manufacturedOn: optionalDateString,
+  notes: optionalText,
+});

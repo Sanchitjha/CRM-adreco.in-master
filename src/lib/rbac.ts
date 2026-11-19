@@ -108,6 +108,19 @@ export function canCreate(role: Role, module: ModuleKey): boolean {
 /** Roles whose people go out to sites, so jobs, tickets and visits can be assigned to them. */
 export const FIELD_ROLES: Role[] = ["INSTALLATION", "SERVICE"];
 
+/**
+ * Who may record machines that were installed before the CRM, with their warranty and maintenance contract:
+ * anyone who can already create units, warranties or maintenance contracts.
+ */
+export function canRecordInstalledBase(role: Role): boolean {
+  return canManage(role, "serials") || canManage(role, "warranty") || canManage(role, "amc");
+}
+
+/** Who may correct a machine's details, its customer and its warranty dates. */
+export function canEditMachines(role: Role): boolean {
+  return canManage(role, "serials") || canManage(role, "warranty");
+}
+
 /** Dealer and customer prices are commercial information — hidden from the field teams. */
 export function canSeePricing(role: Role): boolean {
   return role === "ADMIN" || role === "SALES" || role === "DESIGN" || role === "ACCOUNTS";

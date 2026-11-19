@@ -9,7 +9,16 @@ import { IMPORT_FIELDS, type ImportField } from "@/lib/lead-import";
 const MAX_HEADINGS = 60;
 const HEADING_LENGTH = 60;
 
-const VALID_FIELDS = new Set<string>(IMPORT_FIELDS.map((f) => f.field));
+/** What a sheet's columns are matched to: the fields, what each one holds, and one line saying what the sheet is. */
+export type ColumnTarget = { intro: string; fields: { field: string; meaning: string }[] };
+
+/** The lead importer's fields. */
+export const LEAD_TARGET: ColumnTarget = {
+  intro: "You match the column headings of a sales team's spreadsheet to the fields of a CRM.",
+  fields: IMPORT_FIELDS,
+};
+
+const LEAD_FIELDS = new Set<string>(IMPORT_FIELDS.map((f) => f.field));
 
 /** A first row made of words is a heading row. One with a phone number or an email address in it is customer data. */
 export function headingsSafeToSend(headings: string[]): boolean {
@@ -19,10 +28,10 @@ export function headingsSafeToSend(headings: string[]): boolean {
   });
 }
 
-export function buildColumnPrompt(headings: string[]): AiPrompt {
-  const fields = IMPORT_FIELDS.map((f) => `- ${f.field}: ${f.meaning}`).join("\n");
+export function buildColumnPrompt(headings: string[], target: ColumnTarget = LEAD_TARGET): AiPrompt {
+  const fields = target.fields.map((f) => `- ${f.field}: ${f.meaning}`).join("\n");
   const system = [
-    "You match the column headings of a sales team's spreadsheet to the fields of a CRM.",
+    target.intro,
     "You are given only the headings, numbered from 0. You never see any rows. Headings may be in English, Hindi or Hinglish.",
     "",
     "Fields:",
@@ -40,8 +49,12 @@ export function buildColumnPrompt(headings: string[]): AiPrompt {
 }
 
 /** The AI's answer as column index to field, keeping only what is valid and each field once. */
-export function parseColumnAnswer(raw: unknown, headingCount: number): Map<number, ImportField> {
-  const out = new Map<number, ImportField>();
+export function parseColumnAnswer<F extends string = ImportField>(
+  raw: unknown,
+  headingCount: number,
+  validFields: ReadonlySet<string> = LEAD_FIELDS,
+): Map<number, F> {
+  const out = new Map<number, F>();
   // The answer should be {"columns":[...]}, but a bare list of the same entries means the same thing.
   const columns = Array.isArray(raw) ? raw : (raw as { columns?: unknown } | null)?.columns;
   if (!Array.isArray(columns)) return out;
@@ -51,29 +64,30 @@ export function parseColumnAnswer(raw: unknown, headingCount: number): Map<numbe
     const { index: rawIndex, field } = (entry ?? {}) as { index?: unknown; field?: unknown };
     const index = typeof rawIndex === "string" && /^\d{1,3}$/.test(rawIndex.trim()) ? Number(rawIndex) : rawIndex; // "3" for 3
     if (typeof index !== "number" || !Number.isInteger(index) || index < 0 || index >= headingCount) continue;
-    if (typeof field !== "string" || !VALID_FIELDS.has(field)) continue;
+    if (typeof field !== "string" || !validFields.has(field)) continue;
     if (out.has(index) || usedFields.has(field)) continue;
     usedFields.add(field);
-    out.set(index, field as ImportField);
+    out.set(index, field as F);
   }
   return out;
 }
 
-export type ColumnSuggestion =
-  | { ok: true; map: Map<number, ImportField>; model: string }
+export type ColumnSuggestion<F extends string = ImportField> =
+  | { ok: true; map: Map<number, F>; model: string }
   | { ok: false; reason: string };
 
-export async function suggestColumns(
+export async function suggestColumns<F extends string = ImportField>(
   config: AiConfig,
   headings: string[],
-  options: { fetchImpl?: typeof fetch; timeoutMs?: number } = {},
-): Promise<ColumnSuggestion> {
+  options: { fetchImpl?: typeof fetch; timeoutMs?: number; target?: ColumnTarget } = {},
+): Promise<ColumnSuggestion<F>> {
   if (!headingsSafeToSend(headings)) {
     return { ok: false, reason: "The first row looks like customer data rather than headings, so it was not sent to the AI." };
   }
-  const answer = await askModelJson(config, buildColumnPrompt(headings), options);
+  const target = options.target ?? LEAD_TARGET;
+  const answer = await askModelJson(config, buildColumnPrompt(headings, target), options);
   if (!answer.ok) return answer;
-  const map = parseColumnAnswer(answer.value, headings.length);
+  const map = parseColumnAnswer<F>(answer.value, headings.length, new Set(target.fields.map((f) => f.field)));
   if (map.size === 0) return { ok: false, reason: "The AI did not recognise any of the headings." };
   return { ok: true, map, model: answer.model };
 }

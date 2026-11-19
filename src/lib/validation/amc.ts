@@ -29,3 +29,6 @@ export const rescheduleVisitSchema = z.object({
 });
 
 export const visitIdSchema = z.object({ visitId: z.string().min(1) });
+
+/** Changing a contract: the same terms as a new one, for the same customer. The machines come in as `serialIds`. */
+export const updateAmcSchema = createAmcSchema.omit({ leadId: true }).extend({ amcId: z.string().min(1) });
