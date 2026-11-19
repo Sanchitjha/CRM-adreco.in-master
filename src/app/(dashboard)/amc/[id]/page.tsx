@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { BellRing, CalendarCheck, CalendarClock, GitBranch, ScanBarcode } from "lucide-react";
+import { BellRing, CalendarCheck, CalendarClock, GitBranch, Pencil, ScanBarcode } from "lucide-react";
 import { requireUser } from "@/lib/action-auth";
 import { prisma } from "@/lib/db";
 import { canManage, canView } from "@/lib/rbac";
@@ -62,6 +62,12 @@ export default async function AmcDetailPage({ params }: { params: Promise<{ id: 
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <StatusPill meta={AMC_STATE[state]} />
+          {manage && live && (
+            <Link href={`/amc/${contract.id}/edit`} className="btn btn-secondary btn-sm">
+              <Pencil className="size-3.5" />
+              Edit contract
+            </Link>
+          )}
           {manage && live && !renewed && (
             <ActionButton
               action={renewAmc}
@@ -97,7 +103,7 @@ export default async function AmcDetailPage({ params }: { params: Promise<{ id: 
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard
             title="Preventive maintenance visits"

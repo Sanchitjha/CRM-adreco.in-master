@@ -31,7 +31,7 @@ function Row({
           disabled={!editable || toggling}
           aria-pressed={item.done}
           aria-label={`${item.done ? "Untick" : "Tick"} ${item.label}`}
-          className="text-slate-300 transition hover:text-brand-500 disabled:cursor-default disabled:hover:text-slate-300"
+          className="text-slate-300 transition hover:text-brand-500 disabled:cursor-default disabled:hover:text-slate-300 pointer-coarse:-m-2.5 pointer-coarse:p-2.5"
         >
           {item.done ? <CircleCheck className="size-5 text-emerald-500" /> : <Circle className="size-5" />}
         </button>
@@ -49,7 +49,7 @@ function Row({
             type="submit"
             disabled={removing}
             aria-label={`Remove ${item.label}`}
-            className="flex size-6 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+            className="flex size-6 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600 pointer-coarse:-m-2 pointer-coarse:size-10"
           >
             <X className="size-4" />
           </button>

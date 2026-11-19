@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ScanBarcode } from "lucide-react";
 import { requireUser } from "@/lib/action-auth";
@@ -34,6 +35,18 @@ export default async function RegisterSerialsPage({ searchParams }: { searchPara
         title="Register units"
         description="Add the serial numbers of machines that have been built, or of machines already installed at a customer."
       />
+
+      <div className="max-w-3xl rounded-xl border border-brand-200 bg-brand-50/60 px-4 py-3 text-sm text-slate-700">
+        Recording machines that were installed before the CRM, with their warranty and maintenance contract?{" "}
+        <Link href="/warranty/installed/new" className="font-medium text-brand-700 underline underline-offset-2">
+          Add existing installation
+        </Link>{" "}
+        does it in one step (no serial number needed), and{" "}
+        <Link href="/warranty/installed/import" className="font-medium text-brand-700 underline underline-offset-2">
+          Import from Excel
+        </Link>{" "}
+        does a whole list at once.
+      </div>
 
       <Card className="max-w-3xl p-6">
         {products.length === 0 ? (

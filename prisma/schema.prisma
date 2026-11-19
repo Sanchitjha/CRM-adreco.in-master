@@ -184,6 +184,10 @@ model Lead {
   createdAt   DateTime  @default(now())
   convertedAt DateTime?
 
+  /// A customer added from the installed base (machines sold before the CRM). Not a lead in the sales pipeline, so the
+  /// sales figures and the pipeline board leave it out.
+  existingCustomer Boolean @default(false)
+
   followUps        FollowUp[]
   departmentStages LeadDepartmentHistory[]
   documents        Document[]

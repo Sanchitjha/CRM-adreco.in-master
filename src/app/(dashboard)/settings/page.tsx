@@ -267,7 +267,7 @@ export default async function SettingsPage() {
           <ListChecks className="size-4 text-slate-400" />
           Pick-lists
         </h2>
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
           {OPTION_GROUP_KEYS.map((group) => {
             const meta = OPTION_GROUPS[group];
             const rows = options.filter((o) => o.group === group);

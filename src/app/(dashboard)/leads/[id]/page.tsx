@@ -185,7 +185,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
 
   return (
     <div className="space-y-6">
-      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
         <ArrowLeft className="size-4" />
         Back to leads
       </Link>
@@ -217,6 +217,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
             label="WhatsApp"
           />
           <StatusBadge status={lead.status} />
+          {lead.existingCustomer && <Badge tone="info">Existing customer</Badge>}
           {lead.currentDepartment && (
             <Badge tone="brand" dot>
               {lead.currentDepartment.name}
@@ -225,7 +226,7 @@ export default async function LeadDetailPage({ params }: { params: Promise<{ id:
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         {/* Activity column */}
         <div className="space-y-6 lg:col-span-2">
           {/* AI Deal Copilot & Strategic Advisor */}

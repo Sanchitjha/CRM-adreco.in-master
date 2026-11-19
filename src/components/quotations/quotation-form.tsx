@@ -110,7 +110,7 @@ export function QuotationForm({
       {lockedSurveyId && <input type="hidden" name="siteSurveyId" value={lockedSurveyId} />}
 
       {/* Lead */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="leadId" className="label">
             Lead / customer <span className="text-rose-500">*</span>
@@ -199,47 +199,61 @@ export function QuotationForm({
             {rows.map((r, i) => {
               const amount = num(r.quantity) * num(r.unitPrice);
               return (
+                // On a phone a line is a small card: the description across the top, quantity and price side by side
+                // (each with a visible name, since the column headings are hidden), then the amount and the remove button.
+                // From tablet width up the same pieces sit in one row under the headings ("sm:contents" drops the wrappers).
                 <div
                   key={i}
-                  className="grid grid-cols-1 gap-2 p-3 sm:grid-cols-[1fr_84px_120px_120px_36px] sm:items-center"
+                  className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-[1fr_84px_120px_120px_36px] sm:items-center"
                 >
                   <textarea
                     aria-label="Description"
                     rows={2}
-                    className="textarea py-1.5"
+                    className="textarea col-span-2 py-1.5 sm:col-span-1"
                     placeholder="e.g. EVI Heat Pump 30 kW (supply + install)"
                     value={r.description}
                     onChange={(e) => updateRow(i, { description: e.target.value })}
                     onPaste={(e) => pasteIntoDescription(i, e)}
                   />
-                  <input
-                    aria-label="Quantity"
-                    type="number"
-                    min={1}
-                    className="input py-1.5"
-                    value={r.quantity}
-                    onChange={(e) => updateRow(i, { quantity: e.target.value })}
-                  />
-                  <input
-                    aria-label="Unit price"
-                    type="number"
-                    min={0}
-                    className="input py-1.5"
-                    placeholder="0"
-                    value={r.unitPrice}
-                    onChange={(e) => updateRow(i, { unitPrice: e.target.value })}
-                  />
-                  <div className="text-right text-sm font-medium tabular-nums text-slate-700 sm:pr-1">
-                    {formatINR(amount)}
+                  <div className="sm:contents">
+                    <span className="mb-1 block text-xs font-medium text-slate-500 sm:hidden">Qty</span>
+                    <input
+                      aria-label="Quantity"
+                      type="number"
+                      inputMode="numeric"
+                      min={1}
+                      className="input py-1.5"
+                      value={r.quantity}
+                      onChange={(e) => updateRow(i, { quantity: e.target.value })}
+                    />
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => removeRow(i)}
-                    aria-label="Remove item"
-                    className="flex size-8 items-center justify-center justify-self-end rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 className="size-4" />
-                  </button>
+                  <div className="sm:contents">
+                    <span className="mb-1 block text-xs font-medium text-slate-500 sm:hidden">Unit price (₹)</span>
+                    <input
+                      aria-label="Unit price"
+                      type="number"
+                      inputMode="decimal"
+                      min={0}
+                      className="input py-1.5"
+                      placeholder="0"
+                      value={r.unitPrice}
+                      onChange={(e) => updateRow(i, { unitPrice: e.target.value })}
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center justify-between gap-3 sm:contents">
+                    <div className="text-sm font-medium tabular-nums text-slate-700 sm:pr-1 sm:text-right">
+                      <span className="mr-2 text-xs font-medium text-slate-500 sm:hidden">Amount</span>
+                      {formatINR(amount)}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      aria-label="Remove item"
+                      className="flex size-8 items-center justify-center justify-self-end rounded-lg text-slate-400 transition hover:bg-rose-50 hover:text-rose-600 pointer-coarse:size-11"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -248,8 +262,8 @@ export function QuotationForm({
       </section>
 
       {/* Charges + totals */}
-      <section className="grid gap-6 lg:grid-cols-2">
-        <div className="grid gap-4 sm:grid-cols-2">
+      <section className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="discountPct" className="label">
               Discount (%)
@@ -330,7 +344,7 @@ export function QuotationForm({
       </section>
 
       {/* Notes + terms */}
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="notes" className="label">
             Notes

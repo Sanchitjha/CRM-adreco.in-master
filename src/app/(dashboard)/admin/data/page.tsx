@@ -46,7 +46,7 @@ export default async function AdminDataPage() {
         description="Bring in the Excel sheets you already keep, a month or several at a time, and clear out old data you no longer need."
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Summary label="Leads in the CRM" value={totalLeads.toLocaleString("en-IN")} />
         <Summary label="Oldest lead" value={oldest ? formatDateTime(oldest.createdAt).split(",")[0] : "—"} />
         <Summary label="Newest lead" value={newest ? formatDateTime(newest.createdAt).split(",")[0] : "—"} />
@@ -87,7 +87,7 @@ export default async function AdminDataPage() {
           <p className="px-5 py-6 text-sm text-slate-400">Nothing has been imported yet.</p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="data-table w-full text-left text-sm">
               <thead className="border-b border-[var(--border)] text-xs uppercase tracking-wide text-slate-400">
                 <tr>
                   <th className="px-5 py-2.5 font-medium">File</th>
@@ -101,12 +101,12 @@ export default async function AdminDataPage() {
               <tbody className="divide-y divide-[var(--border)]">
                 {batches.map((b) => (
                   <tr key={b.id}>
-                    <td className="px-5 py-2.5 font-medium text-slate-800">{b.fileName}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{formatDateTime(b.createdAt)}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{b.createdBy.name}</td>
-                    <td className="px-3 py-2.5 text-slate-600">{b.period ?? "everything in the file"}</td>
-                    <td className="px-3 py-2.5 text-right tabular-nums">{b.leadsAdded.toLocaleString("en-IN")}</td>
-                    <td className="px-5 py-2.5 text-right tabular-nums">{b._count.leads.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-2.5 font-medium text-slate-800" data-label="File">{b.fileName}</td>
+                    <td className="px-3 py-2.5 text-slate-600" data-label="When">{formatDateTime(b.createdAt)}</td>
+                    <td className="px-3 py-2.5 text-slate-600" data-label="By">{b.createdBy.name}</td>
+                    <td className="px-3 py-2.5 text-slate-600" data-label="Part imported">{b.period ?? "everything in the file"}</td>
+                    <td className="px-3 py-2.5 text-right tabular-nums" data-label="Added">{b.leadsAdded.toLocaleString("en-IN")}</td>
+                    <td className="px-5 py-2.5 text-right tabular-nums" data-label="Still in CRM">{b._count.leads.toLocaleString("en-IN")}</td>
                   </tr>
                 ))}
               </tbody>

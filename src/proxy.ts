@@ -35,5 +35,6 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // The app's own icons and manifest are fetched by the phone without a sign-in, so they must not be sent to the login page.
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|apple-icon.png|icons/).*)"],
 };

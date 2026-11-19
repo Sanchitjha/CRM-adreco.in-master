@@ -12,7 +12,7 @@ const HIGHLIGHTS = [
 
 export default function LoginPage() {
   return (
-    <div className="grid min-h-screen lg:grid-cols-2">
+    <div className="grid grid-cols-1 min-h-dvh lg:grid-cols-2">
       {/* Brand panel */}
       <div className="relative hidden overflow-hidden bg-[var(--sidebar-bg)] lg:flex lg:flex-col lg:justify-between">
         <div

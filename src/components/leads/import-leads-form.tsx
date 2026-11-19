@@ -164,7 +164,7 @@ export function ImportLeadsForm({ admin }: { admin: boolean }) {
 
         <fieldset className="rounded-xl border border-[var(--border)] p-4" disabled={busy}>
           <legend className="px-1 text-sm font-medium text-slate-700">How much of the sheet to bring in</legend>
-          <div className="grid gap-3 sm:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
             <div>
               <label htmlFor="period-months" className="label">
                 Last…
@@ -347,8 +347,8 @@ function SheetColumns({
                 </option>
               ))}
             </select>
-            {c.by === "ai" && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-medium text-sky-700">AI</span>}
-            {c.by === "you" && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-700">Changed</span>}
+            {c.by === "ai" && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700">AI</span>}
+            {c.by === "you" && <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700">Changed</span>}
           </li>
         ))}
       </ul>

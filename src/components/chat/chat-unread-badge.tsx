@@ -11,7 +11,7 @@ export function ChatUnreadBadge({ className }: { className?: string }) {
     <span
       aria-label={`${count} unread chat messages`}
       className={cn(
-        "flex min-w-5 items-center justify-center rounded-full bg-heat-500 px-1.5 text-[10px] font-semibold leading-5 text-white",
+        "flex min-w-5 items-center justify-center rounded-full bg-heat-500 px-1.5 text-[11px] font-semibold leading-5 text-white",
         className,
       )}
     >

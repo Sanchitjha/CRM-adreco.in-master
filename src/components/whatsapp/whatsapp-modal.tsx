@@ -104,7 +104,7 @@ export function WhatsAppAction({
           type="button"
           onClick={() => setOpen(true)}
           title={`WhatsApp ${customerName}`}
-          className={`flex size-8 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-800 ${className}`}
+          className={`flex size-8 shrink-0 items-center justify-center rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 transition hover:bg-emerald-100 hover:text-emerald-800 pointer-coarse:size-10 ${className}`}
         >
           <MessageCircle className="size-4 fill-emerald-600 text-emerald-600" />
         </button>
@@ -112,7 +112,7 @@ export function WhatsAppAction({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 ${className}`}
+          className={`inline-flex items-center gap-1.5 rounded-lg border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 transition hover:bg-emerald-100 pointer-coarse:min-h-10 ${className}`}
         >
           <MessageCircle className="size-3.5 fill-emerald-600 text-emerald-600" />
           {label}
@@ -121,7 +121,7 @@ export function WhatsAppAction({
         <button
           type="button"
           onClick={() => setOpen(true)}
-          className={`inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 ${className}`}
+          className={`inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 pointer-coarse:min-h-11 ${className}`}
         >
           <MessageCircle className="size-4 fill-white text-white" />
           {label}
@@ -137,7 +137,8 @@ export function WhatsAppAction({
           />
 
           {/* Modal Panel */}
-          <div className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all">
+          {/* The panel scrolls inside itself when the screen is short, such as a phone with its keyboard open. */}
+          <div className="relative max-h-[calc(100dvh-2rem)] w-full max-w-lg overflow-y-auto overscroll-contain rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all">
             {/* Header */}
             <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-emerald-600 to-teal-700 px-6 py-4 text-white">
               <div className="flex items-center gap-2.5">
@@ -154,7 +155,8 @@ export function WhatsAppAction({
               <button
                 type="button"
                 onClick={() => setOpen(false)}
-                className="rounded-lg p-1 text-emerald-100 transition hover:bg-white/10 hover:text-white"
+                aria-label="Close"
+                className="rounded-lg p-2 text-emerald-100 transition hover:bg-white/10 hover:text-white"
               >
                 <X className="size-5" />
               </button>
@@ -191,7 +193,7 @@ export function WhatsAppAction({
                   <button
                     type="button"
                     onClick={handleCopy}
-                    className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-slate-800"
+                    className="inline-flex items-center gap-1 text-xs text-slate-500 transition hover:text-slate-800 pointer-coarse:min-h-10"
                   >
                     {copied ? <Check className="size-3.5 text-emerald-600" /> : <Copy className="size-3.5" />}
                     <span>{copied ? "Copied" : "Copy"}</span>
@@ -232,7 +234,7 @@ export function WhatsAppAction({
                   type="button"
                   onClick={handleOpenWhatsApp}
                   disabled={isPending}
-                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50"
+                  className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[0.99] disabled:opacity-50 pointer-coarse:min-h-11"
                 >
                   {isPending ? (
                     <RefreshCw className="size-4 animate-spin" />

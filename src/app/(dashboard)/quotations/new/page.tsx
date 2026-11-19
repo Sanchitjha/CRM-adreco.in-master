@@ -43,7 +43,7 @@ export default async function NewQuotationPage({
     <div className="space-y-6">
       <Link
         href={lockedLeadId ? `/leads/${lockedLeadId}` : "/quotations"}
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800"
+        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10"
       >
         <ArrowLeft className="size-4" />
         {lockedLeadId ? "Back to lead" : "Back to quotations"}

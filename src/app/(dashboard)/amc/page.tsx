@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import type { Prisma } from "@prisma/client";
-import { BellRing, CalendarClock, CalendarX2, CircleCheck, Plus } from "lucide-react";
+import { BellRing, CalendarClock, CalendarX2, CircleCheck, FileUp, PackagePlus, Plus, Search } from "lucide-react";
 import { requireUser } from "@/lib/action-auth";
 import { prisma } from "@/lib/db";
-import { canManage, canView } from "@/lib/rbac";
+import { canManage, canRecordInstalledBase, canView } from "@/lib/rbac";
 import { leadScope } from "@/lib/scope";
 import { formatDate, parseDateInput, today } from "@/lib/dates";
 import { RENEWAL_REMINDER_DAYS, addDaysUtc, amcState, daysBetween, renewalBucket } from "@/lib/lifecycle";
@@ -14,7 +14,7 @@ import { EmptyState, PageHeader, StatCard } from "@/components/ui";
 import { CustomerLink, DataTable, FilterTabs, StatusPill } from "@/components/page-kit";
 import { HowItWorks } from "@/components/how-it-works";
 
-type SearchParams = { view?: string };
+type SearchParams = { view?: string; q?: string };
 
 const VIEWS = ["active", "renewals", "expired", "cancelled", "all"] as const;
 type View = (typeof VIEWS)[number];
@@ -23,14 +23,19 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
   const user = await requireUser();
   if (!canView(user.role, "amc")) redirect("/");
 
-  const { view: rawView } = await searchParams;
+  const { view: rawView, q: rawQ } = await searchParams;
   const view: View = (VIEWS as readonly string[]).includes(rawView ?? "") ? (rawView as View) : "active";
+  const q = (rawQ ?? "").trim().slice(0, 80);
 
   const todayDate = today();
   const horizon = addDaysUtc(todayDate, Math.max(...RENEWAL_REMINDER_DAYS));
   const monthStart = parseDateInput(`${todayDate.toISOString().slice(0, 7)}-01`)!;
   const monthEnd = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 0));
-  const scope = leadScope(user.role, user.id);
+  // A search looks at the customer (name, address) and the contract number.
+  const scope: Prisma.LeadWhereInput = q
+    ? { AND: [leadScope(user.role, user.id), { OR: [{ customerName: { contains: q, mode: "insensitive" } }, { address: { contains: q, mode: "insensitive" } }] }] }
+    : leadScope(user.role, user.id);
+  const byNumber: Prisma.AmcContractWhereInput = q ? { OR: [{ lead: scope }, { contractNumber: { contains: q, mode: "insensitive" } }] } : { lead: scope };
 
   const where: Record<View, Prisma.AmcContractWhereInput> = {
     active: { status: "ACTIVE", endDate: { gte: todayDate } },
@@ -42,13 +47,13 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
 
   const [contracts, counts, expiringThisMonth] = await Promise.all([
     prisma.amcContract.findMany({
-      where: { lead: scope, ...where[view] },
+      where: { AND: [byNumber, where[view]] },
       include: { lead: true, visits: { select: { status: true } }, _count: { select: { units: true } } },
       orderBy: view === "renewals" || view === "active" ? { endDate: "asc" } : { createdAt: "desc" },
     }),
-    Promise.all(VIEWS.map((v) => prisma.amcContract.count({ where: { lead: scope, ...where[v] } }))),
+    Promise.all(VIEWS.map((v) => prisma.amcContract.count({ where: { AND: [byNumber, where[v]] } }))),
     prisma.amcContract.count({
-      where: { lead: scope, status: "ACTIVE", endDate: { gte: todayDate, lte: monthEnd }, renewals: { none: {} } },
+      where: { AND: [byNumber, { status: "ACTIVE", endDate: { gte: todayDate, lte: monthEnd }, renewals: { none: {} } }] },
     }),
   ]);
   const countOf = (v: View) => counts[VIEWS.indexOf(v)];
@@ -68,12 +73,26 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
         title="AMC contracts"
         description="Preventive maintenance and renewals on autopilot."
         actions={
-          canManage(user.role, "amc") ? (
-            <Link href="/amc/new" className="btn btn-primary">
-              <Plus className="size-4" />
-              New contract
-            </Link>
-          ) : undefined
+          <div className="flex flex-wrap gap-2">
+            {canManage(user.role, "amc") && (
+              <Link href="/amc/new" className="btn btn-primary">
+                <Plus className="size-4" />
+                New contract
+              </Link>
+            )}
+            {canRecordInstalledBase(user.role) && (
+              <Link href="/warranty/installed/new" className="btn btn-secondary">
+                <PackagePlus className="size-4" />
+                Add existing installation
+              </Link>
+            )}
+            {canRecordInstalledBase(user.role) && (
+              <Link href="/warranty/installed/import" className="btn btn-secondary">
+                <FileUp className="size-4" />
+                Import from Excel
+              </Link>
+            )}
+          </div>
         }
       />
 
@@ -82,6 +101,13 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
           <strong className="font-medium text-slate-800">Making a contract:</strong> press New contract, choose the customer, tick
           the machines it covers (only machines already dispatched to that customer are listed), then enter the start and end dates,
           the number of visits a year, the amount and the parts covered. The CRM lays out the visit dates for you.
+        </p>
+        <p>
+          <strong className="font-medium text-slate-800">Contracts you already have:</strong> press{" "}
+          <b className="font-medium text-slate-800">Add existing installation</b> and switch on the AMC section to record the machines
+          and their contract together (start date, period, annual charges, visits a year), or{" "}
+          <b className="font-medium text-slate-800">Import from Excel</b> for many customers at once. A contract can be changed later
+          with <b className="font-medium text-slate-800">Edit contract</b>: its dates, charges, visits, parts and machines.
         </p>
         <p>
           <strong className="font-medium text-slate-800">During the year:</strong> open the contract to mark each visit done, skip
@@ -108,8 +134,29 @@ export default async function AmcPage({ searchParams }: { searchParams: Promise<
         <StatCard label="Expired" value={countOf("expired")} icon={CalendarX2} accent="rose" href="/amc?view=expired" />
       </div>
 
+      <form action="/amc" method="get" className="flex gap-2" role="search">
+        <input type="hidden" name="view" value={view} />
+        <div className="relative min-w-0 flex-1 sm:max-w-md">
+          <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+          <input type="search" name="q" defaultValue={q} placeholder="Search a customer, city or contract number" aria-label="Search contracts" className="input pl-9" />
+        </div>
+        <button type="submit" className="btn btn-secondary">
+          Search
+        </button>
+        {q && (
+          <Link href={`/amc?view=${view}`} className="btn btn-secondary">
+            Clear
+          </Link>
+        )}
+      </form>
+
       <FilterTabs
-        items={VIEWS.map((v) => ({ label: label[v], href: `/amc?view=${v}`, active: view === v, count: countOf(v) }))}
+        items={VIEWS.map((v) => ({
+          label: label[v],
+          href: `/amc?view=${v}${q ? `&q=${encodeURIComponent(q)}` : ""}`,
+          active: view === v,
+          count: countOf(v),
+        }))}
       />
 
       <DataTable

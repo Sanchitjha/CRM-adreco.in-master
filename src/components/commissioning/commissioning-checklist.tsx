@@ -25,7 +25,7 @@ function Row({
 
   return (
     <li className={`border-l-4 px-5 py-3 ${tone}`}>
-      <form action={formAction} className="grid gap-2 sm:grid-cols-[1fr_130px_1fr_auto] sm:items-center">
+      <form action={formAction} className="grid grid-cols-1 gap-2 sm:grid-cols-[1fr_130px_1fr_auto] sm:items-center">
         <input type="hidden" name="commissioningId" value={commissioningId} />
         <input type="hidden" name="itemId" value={item.id} />
         <span className="text-sm text-slate-700">{item.label}</span>

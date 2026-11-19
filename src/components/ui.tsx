@@ -115,15 +115,18 @@ export function StatCard({
 }) {
   const inner = (
     <>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-medium text-slate-500">{label}</span>
+      <div className="flex items-center justify-between gap-2">
+        <span className="min-w-0 text-sm font-medium text-slate-500">{label}</span>
         {Icon && (
-          <span className={cn("flex size-8 items-center justify-center rounded-lg ring-1", STAT_ACCENTS[accent])}>
+          <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg ring-1", STAT_ACCENTS[accent])}>
             <Icon className="size-4" strokeWidth={2} />
           </span>
         )}
       </div>
-      <div className="mt-3 text-3xl font-semibold tracking-tight text-slate-900 tabular-nums">{value}</div>
+      {/* A smaller figure on a phone, where two cards share the width; a very long amount wraps instead of spilling out. */}
+      <div className="mt-3 text-2xl font-semibold tracking-tight text-slate-900 tabular-nums [overflow-wrap:anywhere] sm:text-3xl">
+        {value}
+      </div>
       {hint && <div className="mt-1 text-xs text-slate-400">{hint}</div>}
     </>
   );

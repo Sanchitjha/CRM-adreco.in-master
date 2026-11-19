@@ -58,12 +58,12 @@ export function NewLeadForm({
     <form ref={formRef} method="post" onSubmit={handleSubmit} onChange={resetConfirmation} className="space-y-5">
       <input ref={confirmRef} type="hidden" name="confirmDuplicate" defaultValue="" />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Customer name" name="customerName" required />
-        <Field label="Phone" name="phone" required />
+        <Field label="Phone" name="phone" type="tel" required />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Email" name="email" type="email" />
         <div>
           <label htmlFor="source" className="label">
@@ -86,7 +86,7 @@ export function NewLeadForm({
 
       <Field label="Address" name="address" placeholder="Site / billing address" />
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label htmlFor="contactRole" className="label">
             Their role on the project
@@ -119,12 +119,12 @@ export function NewLeadForm({
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Field label="Referred by" name="referredBy" placeholder="e.g. a plumber, an architect" />
         <Field label="Competitor in mind" name="competitor" placeholder="Brand they are comparing" />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="productCategory">
             Product category

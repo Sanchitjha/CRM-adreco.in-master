@@ -52,7 +52,7 @@ export default async function EditQuotationPage({ params }: { params: Promise<{ 
 
   return (
     <div className="space-y-6">
-      <Link href={`/quotations/${quote.id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+      <Link href={`/quotations/${quote.id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
         <ArrowLeft className="size-4" />
         Back to quotation
       </Link>

@@ -105,11 +105,11 @@ export default async function SalesOrdersPage({ searchParams }: { searchParams: 
             })),
           ]}
         />
-        <form action="/sales-orders" className="flex items-center gap-2">
+        <form action="/sales-orders" className="flex items-center gap-2 max-sm:w-full">
           {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input name="q" defaultValue={q} placeholder="Search order or customer" className="input w-64 pl-9" />
+            <input name="q" defaultValue={q} placeholder="Search order or customer" className="input w-full pl-9 sm:w-64" />
           </div>
           <button type="submit" className="btn btn-secondary">
             Search

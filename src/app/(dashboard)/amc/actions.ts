@@ -9,7 +9,7 @@ import { FIELD_ROLES, canManage } from "@/lib/rbac";
 import { canSeeLead } from "@/lib/scope";
 import { isFieldTechnician } from "@/lib/people";
 import { nextNumber } from "@/lib/sequence";
-import { formatDate } from "@/lib/dates";
+import { formatDate, today } from "@/lib/dates";
 import { addDaysUtc, buildVisitSchedule, daysBetween } from "@/lib/lifecycle";
 import type { ActionState } from "@/lib/action-state";
 import { dateOrNull, firstIssueMessage, textOrNull } from "@/lib/validation/common";
@@ -18,6 +18,7 @@ import {
   completeVisitSchema,
   createAmcSchema,
   rescheduleVisitSchema,
+  updateAmcSchema,
   visitIdSchema,
 } from "@/lib/validation/amc";
 
@@ -275,4 +276,92 @@ export async function rescheduleVisit(_prev: ActionState, formData: FormData): P
 
   revalidateAmc(visit.amcId);
   return { message: "Visit moved." };
+}
+
+const isoDay = (date: Date) => date.toISOString().slice(0, 10);
+
+/**
+ * Changes a contract: its dates, visits a year, charges, covered parts, notes and the machines it covers. Visits that
+ * are already done or skipped are kept. When the dates or the number of visits change, the visits still to come are
+ * planned again from the contract's usual schedule (only the dates from today on); when only the charges or the notes
+ * change, the visits are left alone.
+ */
+export async function updateAmc(_prev: ActionState, formData: FormData): Promise<ActionState> {
+  const user = await requireUser();
+  if (!canManage(user.role, "amc")) return DENIED;
+
+  const parsed = updateAmcSchema.safeParse(Object.fromEntries(formData));
+  if (!parsed.success) return { error: firstIssueMessage(parsed.error.issues) };
+  const d = parsed.data;
+
+  const serialIds = [...new Set(formData.getAll("serialIds").map(String).filter(Boolean))];
+  if (serialIds.length === 0) return { error: "Choose at least one machine to cover." };
+
+  const start = dateOrNull(d.startDate);
+  const end = dateOrNull(d.endDate);
+  if (!start || !end) return { error: "Enter valid dates." };
+  if (end.getTime() <= start.getTime()) return { error: "The contract must end after it starts." };
+
+  const contract = await prisma.amcContract.findUnique({
+    where: { id: d.amcId },
+    include: { lead: true, units: true, visits: { select: { id: true, status: true } } },
+  });
+  if (!contract) return { error: "Contract not found." };
+  if (!canSeeLead(user.role, user.id, contract.lead)) return { error: "You do not have access to this contract." };
+  if (contract.status === "CANCELLED") return { error: "A cancelled contract cannot be changed." };
+
+  const units = await prisma.serialNumber.findMany({ where: { id: { in: serialIds } } });
+  if (units.length !== serialIds.length || units.some((u) => u.leadId !== contract.leadId)) {
+    return { error: "Every covered machine must belong to this customer." };
+  }
+  if (units.some((u) => u.status === "SCRAPPED" || u.status === "IN_STOCK")) {
+    return { error: "Only machines that are with the customer can be covered." };
+  }
+
+  const clash = await overlappingUnits(serialIds, start, end, contract.id);
+  if (clash.length > 0) return { error: `Already covered by another active contract in these dates: ${clash.slice(0, 5).join(", ")}.` };
+
+  const scheduleChanged =
+    isoDay(start) !== isoDay(contract.startDate) || isoDay(end) !== isoDay(contract.endDate) || d.visitsPerYear !== contract.visitsPerYear;
+
+  // The contract's usual evenly spaced visits; the ones whose day has already passed are not put back on the calendar as overdue.
+  const todayDate = today();
+  const upcoming = buildVisitSchedule(start, end, d.visitsPerYear).filter((date) => date.getTime() >= todayDate.getTime());
+
+  const before = new Set(contract.units.map((u) => u.serialNumberId));
+  const after = new Set(serialIds);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.amcContract.update({
+      where: { id: contract.id },
+      data: {
+        startDate: start,
+        endDate: end,
+        visitsPerYear: d.visitsPerYear,
+        amount: d.amount,
+        coveredParts: textOrNull(d.coveredParts),
+        notes: textOrNull(d.notes),
+      },
+    });
+    const removed = [...before].filter((id) => !after.has(id));
+    const added = [...after].filter((id) => !before.has(id));
+    if (removed.length > 0) await tx.amcUnit.deleteMany({ where: { amcId: contract.id, serialNumberId: { in: removed } } });
+    if (added.length > 0) await tx.amcUnit.createMany({ data: added.map((serialNumberId) => ({ amcId: contract.id, serialNumberId })) });
+    if (scheduleChanged) {
+      await tx.amcVisit.deleteMany({ where: { amcId: contract.id, status: "SCHEDULED" } });
+      if (upcoming.length > 0) await tx.amcVisit.createMany({ data: upcoming.map((scheduledFor) => ({ amcId: contract.id, scheduledFor })) });
+    }
+  });
+
+  await logActivity({
+    userId: user.id,
+    action: "AMC_UPDATED",
+    entityType: "AmcContract",
+    entityId: contract.id,
+    details: { note: `${contract.contractNumber} changed${scheduleChanged ? ", visits planned again" : ""}` },
+  });
+
+  revalidateAmc(contract.id);
+  revalidatePath("/warranty");
+  redirect(`/amc/${contract.id}`);
 }

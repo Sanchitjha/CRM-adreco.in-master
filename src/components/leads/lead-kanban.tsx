@@ -138,7 +138,7 @@ export function LeadKanban({
           </div>
         </div>
 
-        <div className="flex items-center gap-6 text-sm text-slate-300">
+        <div className="flex items-center gap-4 text-sm text-slate-300 sm:gap-6">
           <div>
             <span className="block text-xs text-slate-400">Total Deals</span>
             <span className="font-semibold text-white">{leads.length}</span>
@@ -157,7 +157,8 @@ export function LeadKanban({
       </div>
 
       {/* Kanban Horizontal Columns Scroll Container */}
-      <div className="flex gap-4 overflow-x-auto pb-4 pt-1">
+      {/* On a phone the columns run edge to edge and a swipe stops on the next column (snap); on a desktop they just scroll. */}
+      <div className="-mx-4 flex gap-4 overflow-x-auto overscroll-x-contain scroll-px-4 px-4 pb-4 pt-1 pointer-coarse:snap-x pointer-coarse:snap-mandatory sm:mx-0 sm:scroll-px-0 sm:px-0">
         {KANBAN_COLUMNS.map((col) => {
           const colLeads = leads.filter((l) => l.status === col.status);
           const stats = stageStats[col.status] || { count: 0, total: 0 };
@@ -165,7 +166,7 @@ export function LeadKanban({
           return (
             <div
               key={col.status}
-              className="flex w-72 shrink-0 flex-col rounded-xl border border-slate-200/70 bg-slate-50/60 shadow-sm"
+              className="flex w-72 shrink-0 snap-start flex-col rounded-xl border border-slate-200/70 bg-slate-50/60 shadow-sm"
             >
               {/* Column Header */}
               <div
@@ -210,7 +211,7 @@ export function LeadKanban({
                           <div className="min-w-0 flex-1">
                             <Link
                               href={`/leads/${lead.id}`}
-                              className="font-semibold text-slate-900 hover:text-brand-600 line-clamp-1"
+                              className="font-semibold text-slate-900 hover:text-brand-600 line-clamp-1 pointer-coarse:py-1.5"
                             >
                               {lead.customerName}
                             </Link>
@@ -277,8 +278,9 @@ export function LeadKanban({
                                 <button
                                   type="button"
                                   title="Previous Stage"
+                                  aria-label="Previous stage"
                                   onClick={() => handleMoveStage(lead.id, lead.status, "prev")}
-                                  className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                                  className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 pointer-coarse:flex pointer-coarse:min-h-10 pointer-coarse:min-w-10 pointer-coarse:items-center pointer-coarse:justify-center"
                                 >
                                   <ChevronLeft className="size-3.5" />
                                 </button>
@@ -288,8 +290,9 @@ export function LeadKanban({
                                 <button
                                   type="button"
                                   title="Advance Stage"
+                                  aria-label="Move to the next stage"
                                   onClick={() => handleMoveStage(lead.id, lead.status, "next")}
-                                  className="flex items-center gap-0.5 rounded bg-brand-50 px-1.5 py-0.5 text-[11px] font-semibold text-brand-700 hover:bg-brand-100"
+                                  className="flex items-center gap-0.5 rounded bg-brand-50 px-1.5 py-0.5 text-[11px] font-semibold text-brand-700 hover:bg-brand-100 pointer-coarse:min-h-10 pointer-coarse:gap-1 pointer-coarse:px-3 pointer-coarse:text-xs"
                                 >
                                   Next <ChevronRight className="size-3" />
                                 </button>

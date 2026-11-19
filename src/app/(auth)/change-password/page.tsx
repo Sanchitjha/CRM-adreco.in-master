@@ -25,7 +25,7 @@ export default async function ChangePasswordPage() {
   const required = session.user.mustChangePassword;
 
   return (
-    <div className="flex min-h-screen items-center justify-center px-6 py-12">
+    <div className="flex min-h-dvh items-center justify-center px-6 py-12">
       <div className="w-full max-w-sm">
         <div className="mb-8">
           <BrandLogo subtitle="Engineering CRM" />
@@ -54,7 +54,7 @@ export default async function ChangePasswordPage() {
         </div>
 
         {!required && (
-          <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+          <Link href="/" className="mt-6 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
             <ArrowLeft className="size-4" />
             Back to dashboard
           </Link>

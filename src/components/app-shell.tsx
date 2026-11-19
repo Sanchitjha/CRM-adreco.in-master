@@ -20,15 +20,18 @@ export type NotificationItem = {
   leadId: string | null;
 };
 
-/** Close a popover when clicking outside of it. */
+/**
+ * Close a popover when clicking or tapping outside of it. "pointerdown" rather than "mousedown": an iPhone sends no
+ * mouse events for a tap on an empty part of the page, so a menu listening for "mousedown" would never close there.
+ */
 function useClickOutside<T extends HTMLElement>(onClose: () => void) {
   const ref = useRef<T>(null);
   useEffect(() => {
-    function handler(e: MouseEvent) {
+    function handler(e: PointerEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) onClose();
     }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
+    document.addEventListener("pointerdown", handler);
+    return () => document.removeEventListener("pointerdown", handler);
   }, [onClose]);
   return ref;
 }
@@ -67,18 +70,20 @@ function NotificationsMenu({ notifications, unreadCount }: { notifications: Noti
         type="button"
         onClick={() => setOpen((o) => !o)}
         aria-label="Notifications"
-        className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+        className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 pointer-coarse:size-11"
       >
         <Bell className="size-[18px]" />
         {unreadCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-heat-500 px-1 text-[10px] font-semibold leading-4 text-white ring-2 ring-white">
+          <span className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-heat-500 px-1 text-[11px] font-semibold leading-4 text-white ring-2 ring-white">
             {unreadCount > 9 ? "9+" : unreadCount}
           </span>
         )}
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-lg">
+        // On a phone the list spans the screen under the header (it would run off the left edge if it hung from the bell);
+        // from tablet width up it hangs from the bell as before. The header is 4rem tall and always at the top.
+        <div className="absolute right-0 top-11 z-50 w-80 overflow-hidden rounded-xl border border-[var(--border)] bg-white shadow-lg max-sm:fixed max-sm:inset-x-3 max-sm:top-[4.25rem] max-sm:w-auto">
           <div className="flex items-center justify-between border-b border-[var(--border)] px-4 py-3">
             <span className="text-sm font-semibold text-slate-900">Notifications</span>
             {unreadCount > 0 && (
@@ -87,7 +92,7 @@ function NotificationsMenu({ notifications, unreadCount }: { notifications: Noti
               </span>
             )}
           </div>
-          <div className="max-h-80 overflow-y-auto">
+          <div className="max-h-[min(20rem,60dvh)] overflow-y-auto overscroll-contain">
             {notifications.length === 0 ? (
               <div className="flex flex-col items-center px-4 py-8 text-center">
                 <Inbox className="mb-2 size-6 text-slate-300" />
@@ -202,7 +207,7 @@ export function AppShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-dvh">
       {/* Desktop navigation rail */}
       <aside className="sidebar-shell fixed inset-y-0 left-0 z-40 hidden w-64 lg:block">
         <SidebarNav role={role} />
@@ -216,11 +221,12 @@ export function AppShell({
             onClick={() => setMobileOpen(false)}
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
           />
-          <aside className="sidebar-shell absolute inset-y-0 left-0 w-72 shadow-2xl">
+          {/* The drawer keeps clear of the notch (turned sideways) and the home bar at the bottom of an iPhone. */}
+          <aside className="sidebar-shell absolute inset-y-0 left-0 w-72 max-w-[85%] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] shadow-2xl">
             <button
               aria-label="Close menu"
               onClick={() => setMobileOpen(false)}
-              className="absolute right-3 top-4 flex size-8 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white"
+              className="absolute right-3 top-3 flex size-10 items-center justify-center rounded-lg text-slate-400 hover:bg-white/10 hover:text-white"
             >
               <X className="size-5" />
             </button>
@@ -230,13 +236,13 @@ export function AppShell({
       )}
 
       {/* Content column */}
-      <div className="flex min-h-screen flex-col lg:pl-64">
+      <div className="flex min-h-dvh flex-col lg:pl-64">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-[var(--border)] bg-white/85 px-4 backdrop-blur-md sm:px-6">
           <button
             type="button"
             aria-label="Open menu"
             onClick={() => setMobileOpen(true)}
-            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 lg:hidden"
+            className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 pointer-coarse:size-11 lg:hidden"
           >
             <Menu className="size-5" />
           </button>
@@ -247,14 +253,14 @@ export function AppShell({
             <Link
               href="/search"
               aria-label="Search"
-              className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 sm:hidden"
+              className="flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 pointer-coarse:size-11 sm:hidden"
             >
               <Search className="size-5" />
             </Link>
             <Link
               href="/chat"
               aria-label="Team chat"
-              className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700"
+              className="relative flex size-9 items-center justify-center rounded-lg text-slate-500 transition hover:bg-slate-100 hover:text-slate-700 pointer-coarse:size-11"
             >
               <MessagesSquare className="size-[18px]" />
               <ChatUnreadBadge className="absolute -right-0.5 -top-0.5 ring-2 ring-white" />
@@ -265,7 +271,7 @@ export function AppShell({
           </div>
         </header>
 
-        <main className="flex-1 px-4 py-6 sm:px-6 lg:px-8">
+        <main className="flex-1 px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-6 sm:px-6 lg:px-8">
           <div className="mx-auto w-full max-w-7xl">{children}</div>
         </main>
       </div>

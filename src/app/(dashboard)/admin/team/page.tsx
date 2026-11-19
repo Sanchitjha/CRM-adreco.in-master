@@ -70,7 +70,7 @@ export default async function TeamActivityPage({ searchParams }: { searchParams:
             href={`/admin/team?day=${tab.kind}`}
             aria-current={tab.kind === kind ? "page" : undefined}
             className={cn(
-              "rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset transition",
+              "inline-flex items-center rounded-full px-4 py-1.5 text-sm font-medium ring-1 ring-inset transition pointer-coarse:min-h-10",
               tab.kind === kind
                 ? "bg-brand-600 text-white ring-brand-600"
                 : "bg-white text-slate-600 ring-slate-200 hover:bg-slate-50",
@@ -99,7 +99,7 @@ export default async function TeamActivityPage({ searchParams }: { searchParams:
         <TeamActivityTable report={report} />
       </SectionCard>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <LeadList title="Follow-ups overdue" items={report.lists.overdue} icon={CalendarClock} />
         <LeadList title="Leads not contacted yet" items={report.lists.neverContacted} icon={Contact} />
         <LeadList title="Leads untouched for a week" items={report.lists.stale} icon={History} />

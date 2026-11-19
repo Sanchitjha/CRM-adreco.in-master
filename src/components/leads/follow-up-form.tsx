@@ -18,7 +18,7 @@ export function FollowUpForm({ leadId }: { leadId: string }) {
         <textarea id="note" name="note" required rows={2} className="textarea" placeholder="What was discussed?" />
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <div>
           <label className="label" htmlFor="nextFollowUpDate">
             Next follow-up date

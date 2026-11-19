@@ -98,7 +98,7 @@ export default async function DealerDetailPage({ params }: { params: Promise<{ i
         <StatCard label="Complaints" value={tickets.length} icon={LifeBuoy} accent="rose" hint="On their customers' machines" />
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard title="Targets and incentives" description="Incentive is earned on the full achieved amount once the target is met" icon={Target} bodyClassName="p-0">
             {dealer.targets.length === 0 ? (

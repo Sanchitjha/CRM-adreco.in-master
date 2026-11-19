@@ -18,7 +18,7 @@ export type UserRow = {
 export function UsersTable({ users, currentUserId }: { users: UserRow[]; currentUserId: string }) {
   return (
     <div className="overflow-x-auto">
-      <table className="min-w-full text-sm">
+      <table className="data-table min-w-full text-sm">
         <thead>
           <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
             <th className="px-5 py-3 font-medium text-slate-500">Name</th>
@@ -86,7 +86,7 @@ function UserRowItem({ user, isSelf }: { user: UserRow; isSelf: boolean }) {
 
   return (
     <tr className="align-middle transition hover:bg-slate-50/70">
-      <td className="px-5 py-3">
+      <td className="px-5 py-3" data-label="Name">
         <div className="flex items-center gap-3">
           <Avatar name={user.name} />
           <div className="min-w-0">
@@ -98,7 +98,7 @@ function UserRowItem({ user, isSelf }: { user: UserRow; isSelf: boolean }) {
           </div>
         </div>
       </td>
-      <td className="px-5 py-3">
+      <td className="px-5 py-3" data-label="Role">
         <select
           defaultValue={user.role}
           disabled={isSelf || pending}
@@ -113,12 +113,12 @@ function UserRowItem({ user, isSelf }: { user: UserRow; isSelf: boolean }) {
           ))}
         </select>
       </td>
-      <td className="px-5 py-3">
+      <td className="px-5 py-3" data-label="Status">
         <button
           type="button"
           onClick={handleToggleActive}
           disabled={isSelf || pending}
-          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset transition disabled:opacity-60 ${
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ring-1 ring-inset transition disabled:opacity-60 pointer-coarse:min-h-10 pointer-coarse:px-4 ${
             user.active
               ? "bg-emerald-50 text-emerald-700 ring-emerald-200 hover:bg-emerald-100"
               : "bg-slate-100 text-slate-500 ring-slate-200 hover:bg-slate-200"
@@ -128,14 +128,14 @@ function UserRowItem({ user, isSelf }: { user: UserRow; isSelf: boolean }) {
           {user.active ? "Active" : "Inactive"}
         </button>
       </td>
-      <td className="px-5 py-3">
-        <div className="flex items-center gap-2">
+      <td className="px-5 py-3" data-label="Reset password">
+        <div className="flex items-center gap-2 max-sm:w-full">
           <input
             type="text"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
             placeholder="New password"
-            className="input w-36 py-1.5 text-sm"
+            className="input w-36 py-1.5 text-sm max-sm:w-auto max-sm:min-w-0 max-sm:flex-1"
           />
           <button
             type="button"

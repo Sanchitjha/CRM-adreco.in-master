@@ -35,7 +35,7 @@ export type FieldDef =
     })
   | (Base & { kind: "file"; accept?: string })
   | (Base & { kind: "checkbox"; defaultChecked?: boolean })
-  | (Base & { kind: "checkboxes"; options: (Option & { hint?: string })[]; emptyText?: string })
+  | (Base & { kind: "checkboxes"; options: (Option & { hint?: string; checked?: boolean })[]; emptyText?: string })
   | { kind: "hidden"; name: string; value: string };
 
 export type FormAction = (prev: ActionState, formData: FormData) => Promise<ActionState>;
@@ -226,6 +226,7 @@ function FieldInput({ field, formId }: { field: Exclude<FieldDef, { kind: "hidde
                     type="checkbox"
                     name={field.name}
                     value={o.value}
+                    defaultChecked={o.checked}
                     className="mt-0.5 size-4 rounded border-slate-300 accent-[var(--primary)]"
                   />
                   <span className="text-sm text-slate-700">

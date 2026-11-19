@@ -99,11 +99,11 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <div className="space-y-6 lg:col-span-2">
           <SectionCard title="Order items" description="Copied from the accepted quotation" icon={ShoppingCart} bodyClassName="p-0">
             <div className="overflow-x-auto">
-              <table className="min-w-full text-sm">
+              <table className="data-table min-w-full text-sm">
                 <thead>
                   <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                     <th className="px-5 py-2.5 font-medium text-slate-500">Description</th>
@@ -115,10 +115,10 @@ export default async function SalesOrderDetailPage({ params }: { params: Promise
                 <tbody className="divide-y divide-[var(--border)]">
                   {order.items.map((i) => (
                     <tr key={i.id}>
-                      <td className="px-5 py-3 text-slate-700">{i.description}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-slate-600">{i.quantity}</td>
-                      <td className="px-5 py-3 text-right tabular-nums text-slate-600">{formatINR(Number(i.unitPrice))}</td>
-                      <td className="px-5 py-3 text-right font-medium tabular-nums text-slate-800">{formatINR(Number(i.lineTotal))}</td>
+                      <td className="px-5 py-3 text-slate-700" data-label="Description">{i.description}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-600" data-label="Qty">{i.quantity}</td>
+                      <td className="px-5 py-3 text-right tabular-nums text-slate-600" data-label="Unit price">{formatINR(Number(i.unitPrice))}</td>
+                      <td className="px-5 py-3 text-right font-medium tabular-nums text-slate-800" data-label="Amount">{formatINR(Number(i.lineTotal))}</td>
                     </tr>
                   ))}
                 </tbody>

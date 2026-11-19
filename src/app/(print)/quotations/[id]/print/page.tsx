@@ -52,7 +52,7 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
       <style>{`@page { size: A4; margin: 14mm 14mm 16mm; @bottom-right { content: "Page " counter(page) " of " counter(pages); font-size: 9px; color: #64748b; } }`}</style>
 
       <div className="mb-4 flex items-center justify-between print:hidden">
-        <Link href={`/quotations/${quote.id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+        <Link href={`/quotations/${quote.id}`} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
           <ArrowLeft className="size-4" />
           Back to quotation
         </Link>
@@ -114,7 +114,7 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
             <tr>
               <td className="align-top">
         <div className="space-y-6">
-        <section className="grid gap-6 sm:grid-cols-2 print:grid-cols-2">
+        <section className="grid grid-cols-1 gap-6 sm:grid-cols-2 print:grid-cols-2">
           <div>
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Prepared for</h2>
             <p className="mt-1 text-base font-semibold">{quote.lead.customerName}</p>

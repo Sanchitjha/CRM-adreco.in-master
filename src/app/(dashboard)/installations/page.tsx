@@ -121,12 +121,12 @@ export default async function InstallationsPage({ searchParams }: { searchParams
               : []),
           ]}
         />
-        <form action="/installations" className="flex items-center gap-2">
+        <form action="/installations" className="flex items-center gap-2 max-sm:w-full">
           {statusFilter && <input type="hidden" name="status" value={statusFilter} />}
           {onlyMine && <input type="hidden" name="mine" value="1" />}
-          <div className="relative">
+          <div className="relative min-w-0 flex-1 sm:flex-none">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
-            <input name="q" defaultValue={q} placeholder="Search job, customer or site" className="input w-64 pl-9" />
+            <input name="q" defaultValue={q} placeholder="Search job, customer or site" className="input w-full pl-9 sm:w-64" />
           </div>
           <button type="submit" className="btn btn-secondary">
             Search

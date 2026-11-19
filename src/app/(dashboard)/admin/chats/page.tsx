@@ -52,7 +52,7 @@ export default async function AdminChatsPage({ searchParams }: { searchParams: P
           <EmptyState icon={MessagesSquare} title="No conversations found" />
         ) : (
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
+            <table className="data-table min-w-full text-sm">
               <thead>
                 <tr className="border-b border-[var(--border)] bg-slate-50/70 text-left">
                   <th className="px-5 py-3 font-medium text-slate-500">Conversation</th>
@@ -64,17 +64,17 @@ export default async function AdminChatsPage({ searchParams }: { searchParams: P
               <tbody className="divide-y divide-[var(--border)]">
                 {conversations.map((c) => (
                   <tr key={c.id} className="hover:bg-slate-50/70">
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3" data-label="Conversation">
                       <Link href={`/chat/${c.id}`} className="font-medium text-slate-800 hover:text-brand-600">
                         {c.title}
                       </Link>
                       <p className="text-xs text-slate-400">{c.detail}</p>
                     </td>
-                    <td className="px-5 py-3">
+                    <td className="px-5 py-3" data-label="Type">
                       <Badge tone={KIND_TONE[c.kind]}>{KIND_LABEL[c.kind]}</Badge>
                     </td>
-                    <td className="px-5 py-3 tabular-nums text-slate-600">{c.messageCount}</td>
-                    <td className="max-w-md px-5 py-3">
+                    <td className="px-5 py-3 tabular-nums text-slate-600" data-label="Messages">{c.messageCount}</td>
+                    <td className="max-w-md px-5 py-3" data-label="Latest">
                       <p className="truncate text-slate-600">
                         {c.lastMessageAuthor ? `${c.lastMessageAuthor}: ` : ""}
                         {c.lastMessagePreview}

@@ -25,7 +25,7 @@ export default async function NewLeadPage() {
 
   return (
     <div className="space-y-6">
-      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+      <Link href="/leads" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 pointer-coarse:min-h-10">
         <ArrowLeft className="size-4" />
         Back to leads
       </Link>
