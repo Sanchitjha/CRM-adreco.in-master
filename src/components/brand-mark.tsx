@@ -1,42 +1,20 @@
 import { cn } from "@/lib/utils";
 
-/** Adreco logomark — a thermal tile: warm-to-cool gradient with an airflow swirl. */
+/** Adreco logomark — renders the official Adreco Heat Pump logo mark. */
 export function BrandMark({ className }: { className?: string }) {
   return (
     <span
       className={cn(
-        "relative flex size-9 items-center justify-center overflow-hidden rounded-xl shadow-sm",
+        "relative flex size-9 items-center justify-center overflow-hidden rounded-lg bg-white p-1 shadow-sm ring-1 ring-slate-200/60",
         className,
       )}
     >
-      <svg viewBox="0 0 40 40" className="size-full" role="img" aria-label="Adreco">
-        <defs>
-          <linearGradient id="adreco-mark" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#2dd4bf" />
-            <stop offset="55%" stopColor="#0d9488" />
-            <stop offset="100%" stopColor="#0f766e" />
-          </linearGradient>
-        </defs>
-        <rect width="40" height="40" rx="11" fill="url(#adreco-mark)" />
-        {/* airflow / heat-exchange swirls */}
-        <path
-          d="M11 15c4-3 9-3 13 0 3.2 2.4 3 6.4-.4 7.6-2.4.9-4.6-.4-4.6-2.6 0-1.6 1.2-2.6 2.7-2.3"
-          fill="none"
-          stroke="#ffffff"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          opacity="0.95"
-        />
-        <path
-          d="M27 27c-4 2.6-9 2.6-13 0"
-          fill="none"
-          stroke="#d5fff8"
-          strokeWidth="2.4"
-          strokeLinecap="round"
-          opacity="0.8"
-        />
-      </svg>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src="/adreco-logo.png"
+        alt="Adreco Heat Pump"
+        className="size-full object-contain"
+      />
     </span>
   );
 }
@@ -52,15 +30,31 @@ export function BrandLogo({
 }) {
   return (
     <div className={cn("flex items-center gap-2.5", className)}>
-      <BrandMark />
-      <div className="leading-tight">
-        <div className={cn("text-[15px] font-semibold tracking-tight", onDark ? "text-white" : "text-slate-900")}>
-          Adreco
-        </div>
-        <div className={cn("text-[11px] font-medium", onDark ? "text-brand-300/80" : "text-slate-400")}>
-          {subtitle}
-        </div>
+      <div
+        className={cn(
+          "flex items-center rounded-lg px-2 py-1 transition",
+          onDark ? "bg-white shadow-sm ring-1 ring-black/5" : "bg-transparent",
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/adreco-logo.png"
+          alt="Adreco Heat Pump"
+          className="h-7 w-auto max-w-[140px] object-contain"
+        />
       </div>
+      {subtitle && (
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wider",
+            onDark
+              ? "bg-white/10 text-white/90 border border-white/15"
+              : "bg-slate-100 text-slate-700 border border-slate-200",
+          )}
+        >
+          {subtitle}
+        </span>
+      )}
     </div>
   );
 }
