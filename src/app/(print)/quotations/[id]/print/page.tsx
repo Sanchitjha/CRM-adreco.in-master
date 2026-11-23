@@ -40,8 +40,9 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
   const companyAddress = [company?.address, [company?.city, company?.state, company?.pincode].filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(", ");
+  const logoSrc = company?.logoUrl || "/adreco-logo.png";
   const missingOnLetterhead = [
-    ...(company?.logoUrl ? [] : ["the company logo"]),
+    ...(logoSrc ? [] : ["the company logo"]),
     ...(companyAddress ? [] : ["the company address"]),
   ];
   const companyContact = [company?.phone, company?.email, company?.website].filter(Boolean).join("  ·  ");
@@ -86,9 +87,9 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
               <td className="pb-6 align-top">
         <header className="flex flex-col items-start justify-between gap-4 border-b-2 border-slate-800 pb-4 sm:flex-row sm:gap-6 print:flex-row print:gap-6">
           <div>
-            {company?.logoUrl && (
+            {logoSrc && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={company.logoUrl} alt="" className="mb-2 h-14 w-auto max-w-[220px] object-contain" />
+              <img src={logoSrc} alt={companyName} className="mb-2 h-14 w-auto max-w-[220px] object-contain" />
             )}
             <h1 className="text-xl font-bold tracking-tight">{company?.legalName || companyName}</h1>
             {companyAddress && <p className="mt-1 max-w-sm text-xs text-slate-600">{companyAddress}</p>}
