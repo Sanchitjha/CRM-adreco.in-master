@@ -35,6 +35,7 @@ export default auth((req) => {
 });
 
 export const config = {
-  // The app's own icons and manifest are fetched by the phone without a sign-in, so they must not be sent to the login page.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|apple-icon.png|icons/).*)"],
+  // The app's own icons, manifest and logo are fetched by a phone, and by the sign-in page, without a sign-in, so they must
+  // not be sent to the login page. A new file that the sign-in page shows has to be added here (src/proxy.test.ts checks).
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|apple-icon.png|icons/|adreco-logo.png).*)"],
 };
