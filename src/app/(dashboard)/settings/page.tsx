@@ -51,11 +51,11 @@ export default async function SettingsPage() {
       />
 
       <SectionCard title="Company profile" description="Printed on documents and used as the sender identity" icon={Building2}>
-        {profile?.logoUrl && (
+        {(profile?.logoUrl || true) && (
           <div className="mb-5 flex items-center gap-4 rounded-lg border border-[var(--border)] bg-slate-50/60 px-4 py-3">
             {/* The logo is a data URL or an outside link, so the plain element is the right one here. */}
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={profile.logoUrl} alt="Company logo" className="h-14 w-auto max-w-[200px] object-contain" />
+            <img src={profile?.logoUrl || "/adreco-logo.png"} alt="Company logo" className="h-14 w-auto max-w-[200px] object-contain" />
             <p className="text-xs text-slate-500">Current logo, shown on printed quotations.</p>
           </div>
         )}
