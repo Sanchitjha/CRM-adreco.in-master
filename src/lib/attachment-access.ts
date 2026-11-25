@@ -1,12 +1,12 @@
 import { prisma } from "@/lib/db";
 import type { SessionUser } from "@/lib/action-auth";
-import { canAccessSurveys, canManage, canView } from "@/lib/rbac";
-import { canSeeLead } from "@/lib/scope";
+import { canAccessQuotations, canAccessSurveys, canManage, canView } from "@/lib/rbac";
+import { canEditQuotation, canSeeLead, canSeeQuotation } from "@/lib/scope";
 import { attachmentRights, type AttachmentEntityType, type AttachmentFacts, type AttachmentRights } from "@/lib/attachments";
 
 /**
- * What this person may do with the photos, videos and files of one product, survey, installation or ticket, using
- * the same rules as that item's own page. Null means there is no such item.
+ * What this person may do with the photos, videos and files of one product, survey, installation, ticket or
+ * quotation, using the same rules as that item's own page. Null means there is no such item.
  */
 export async function loadAttachmentRights(
   user: SessionUser,
@@ -25,6 +25,22 @@ export async function loadAttachmentRights(
           moduleView: canView(user.role, "products"),
           moduleManage: canManage(user.role, "products"),
           leadVisible: true,
+        };
+      }
+      break;
+    }
+    case "QUOTATION": {
+      const q = await prisma.quotation.findUnique({
+        where: { id: entityId },
+        select: { createdById: true, lead: { select: { assignedToId: true } }, salesOrder: { select: { id: true } } },
+      });
+      if (q) {
+        facts = {
+          ...base,
+          moduleView: canAccessQuotations(user.role),
+          // The quotation page's own rule for who may edit it, and it is closed once it has become a sales order.
+          moduleManage: canEditQuotation(user.role, user.id, q) && !q.salesOrder,
+          leadVisible: canSeeQuotation(user.role, user.id, q),
         };
       }
       break;

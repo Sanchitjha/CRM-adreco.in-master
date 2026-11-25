@@ -106,6 +106,12 @@ competitor fields; a **duplicate
 warning** when a lead is created twice; and a printable, branded **quotation** (Print / Save as PDF)
 with the amount in words.
 
+**Extra sheets on a quotation:** on the quotation page, *Extra sheets* takes the terms and conditions sheet, the
+technical specification sheet of the heat pump, or any other PDF or picture (up to 10 sheets, 25 MB each). They are
+printed after the quotation, in the order they were added, so Print / Save as PDF gives one document; a switch on the
+print page leaves them out. Whoever may edit the quotation may add and remove sheets, until it becomes a sales order.
+Sheets are kept in the file storage (S3) like the other photos and files.
+
 **Machines installed before the CRM:** under Warranty, *Add existing installation* records one customer's machines
 (model, capacity in kW, how many, installation date, the warranty period and, if there is one, the AMC with its yearly
 charge), and *Import from Excel* does a whole list: the file is checked first and only then imported, hotels of one group

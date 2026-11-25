@@ -1,11 +1,14 @@
 /**
- * Photos, videos and files attached to products, site surveys, installations and service tickets. Pure rules only
- * (what may be uploaded, how big, where it is stored, who may do what); the database and S3 calls live in
+ * Photos, videos and files attached to products, site surveys, installations, service tickets and quotations. Pure
+ * rules only (what may be uploaded, how big, where it is stored, who may do what); the database and S3 calls live in
  * src/app/(dashboard)/attachment-actions.ts.
+ *
+ * A quotation's files are its "extra sheets" (terms and conditions, the technical specification of the heat pump).
+ * They are printed after the quotation, so they are limited to what a browser can put on a page: a PDF or a picture.
  */
 import type { Role } from "@prisma/client";
 
-export const ATTACHMENT_ENTITIES = ["PRODUCT", "SITE_SURVEY", "INSTALLATION", "SERVICE_TICKET"] as const;
+export const ATTACHMENT_ENTITIES = ["PRODUCT", "SITE_SURVEY", "INSTALLATION", "SERVICE_TICKET", "QUOTATION"] as const;
 export type AttachmentEntityType = (typeof ATTACHMENT_ENTITIES)[number];
 
 export function isAttachmentEntity(value: unknown): value is AttachmentEntityType {
@@ -25,6 +28,28 @@ export const ATTACHMENT_MAX_BYTES: Record<AttachmentKind, number> = {
 
 /** Enough for a site's worth of pictures, and a stop for a runaway upload loop. */
 export const MAX_ATTACHMENTS_PER_ITEM = 60;
+
+/** A quotation with more extra sheets than this would be a book, and every page of them is rendered to print. */
+export const MAX_SHEETS_PER_QUOTATION = 10;
+
+export function maxAttachmentsFor(entityType: AttachmentEntityType): number {
+  return entityType === "QUOTATION" ? MAX_SHEETS_PER_QUOTATION : MAX_ATTACHMENTS_PER_ITEM;
+}
+
+/** What a browser can show on a printed page. (No HEIC photos, no videos, no Office files: they cannot be printed.) */
+const SHEET_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/webp", "image/gif"];
+
+/** The value for the file picker's accept attribute when adding an extra sheet. */
+export const SHEET_ACCEPT = SHEET_TYPES.join(",");
+
+export const SHEET_KINDS = ["pdf", "image"] as const;
+export type SheetKind = (typeof SHEET_KINDS)[number];
+
+/** How an extra sheet is put on the printed page, or null when its type cannot be printed. */
+export function sheetKindOf(contentType: string): SheetKind | null {
+  if (contentType === "application/pdf") return "pdf";
+  return SHEET_TYPES.includes(contentType) ? "image" : null;
+}
 
 const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "image/heic", "image/heif"];
 const VIDEO_TYPES = ["video/mp4", "video/quicktime", "video/webm", "video/3gpp", "video/x-m4v"];
@@ -81,11 +106,21 @@ export function kindOfContentType(contentType: string): AttachmentKind | null {
 
 export type UploadCheck = { ok: true; contentType: string; kind: AttachmentKind } | { ok: false; error: string };
 
-export function checkUpload(input: { fileName: string; contentType: string | undefined; size: number }): UploadCheck {
+/** `entityType` narrows what is allowed: an extra sheet of a quotation must be something that can be printed. */
+export function checkUpload(
+  input: { fileName: string; contentType: string | undefined; size: number },
+  entityType?: AttachmentEntityType,
+): UploadCheck {
   const contentType = resolveContentType(input.fileName, input.contentType);
   const kind = contentType ? kindOfContentType(contentType) : null;
   if (!contentType || !kind) {
     return { ok: false, error: "That kind of file is not allowed. Use a photo, a video, a PDF or an Office document." };
+  }
+  if (entityType === "QUOTATION" && !sheetKindOf(contentType)) {
+    return {
+      ok: false,
+      error: "An extra sheet must be a PDF or a picture (JPG, PNG, WebP or GIF) so that it can be printed. Save a Word or Excel file as a PDF first.",
+    };
   }
   if (!Number.isFinite(input.size) || input.size <= 0) return { ok: false, error: "That file is empty." };
   const max = ATTACHMENT_MAX_BYTES[kind];
@@ -134,6 +169,8 @@ export function attachmentPath(entityType: AttachmentEntityType, entityId: strin
       return `/installations/${entityId}`;
     case "SERVICE_TICKET":
       return `/tickets/${entityId}`;
+    case "QUOTATION":
+      return `/quotations/${entityId}`;
   }
 }
 
@@ -143,9 +180,9 @@ export type AttachmentRights = { view: boolean; upload: boolean; removeAny: bool
 export type AttachmentFacts = {
   role: Role;
   userId: string;
-  /** Can this role open the module at all (products, installations, tickets, surveys). */
+  /** Can this role open the module at all (products, installations, tickets, surveys, quotations). */
   moduleView: boolean;
-  /** Can this role change records in the module (products, installations, tickets). */
+  /** Can this role change records in the module (products, installations, tickets). For a quotation: may this person edit it. */
   moduleManage: boolean;
   /** For a sales rep: is the item's lead theirs. Other roles pass true. */
   leadVisible: boolean;
@@ -167,6 +204,9 @@ export function attachmentRights(entityType: AttachmentEntityType, f: Attachment
 
   switch (entityType) {
     case "PRODUCT":
+      return { view: true, upload: f.moduleManage, removeAny: f.moduleManage };
+    case "QUOTATION":
+      // Whoever may edit the quotation (and it has not become a sales order) may add and remove its extra sheets.
       return { view: true, upload: f.moduleManage, removeAny: f.moduleManage };
     case "SITE_SURVEY": {
       const staff = f.role === "ADMIN" || f.role === "DESIGN";

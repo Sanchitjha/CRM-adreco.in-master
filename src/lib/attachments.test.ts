@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import type { Role } from "@prisma/client";
 import {
   ATTACHMENT_MAX_BYTES,
+  MAX_ATTACHMENTS_PER_ITEM,
+  MAX_SHEETS_PER_QUOTATION,
+  SHEET_ACCEPT,
   attachmentKey,
   attachmentPath,
   attachmentRights,
@@ -9,8 +12,10 @@ import {
   formatBytes,
   isAttachmentEntity,
   keyBelongsTo,
+  maxAttachmentsFor,
   resolveContentType,
   safeFileName,
+  sheetKindOf,
   type AttachmentFacts,
 } from "./attachments";
 
@@ -110,8 +115,9 @@ describe("keys", () => {
 });
 
 describe("entities and paths", () => {
-  it("knows the four kinds of item", () => {
+  it("knows the five kinds of item", () => {
     expect(isAttachmentEntity("PRODUCT")).toBe(true);
+    expect(isAttachmentEntity("QUOTATION")).toBe(true);
     expect(isAttachmentEntity("LEAD")).toBe(false);
     expect(isAttachmentEntity(42)).toBe(false);
   });
@@ -121,6 +127,72 @@ describe("entities and paths", () => {
     expect(attachmentPath("SITE_SURVEY", "1")).toBe("/surveys/1");
     expect(attachmentPath("INSTALLATION", "1")).toBe("/installations/1");
     expect(attachmentPath("SERVICE_TICKET", "1")).toBe("/tickets/1");
+    expect(attachmentPath("QUOTATION", "1")).toBe("/quotations/1");
+  });
+});
+
+describe("the extra sheets of a quotation", () => {
+  it("accepts a PDF or a picture a browser can print", () => {
+    expect(checkUpload({ fileName: "Technical specification.pdf", contentType: "application/pdf", size: 2 * MB }, "QUOTATION")).toEqual({
+      ok: true,
+      contentType: "application/pdf",
+      kind: "file",
+    });
+    expect(checkUpload({ fileName: "terms.png", contentType: "image/png", size: MB }, "QUOTATION").ok).toBe(true);
+    expect(checkUpload({ fileName: "terms.JPG", contentType: "", size: MB }, "QUOTATION").ok).toBe(true);
+  });
+
+  it("refuses what cannot be printed on a page, and says to save it as a PDF", () => {
+    for (const [fileName, contentType] of [
+      ["scan.heic", "image/heic"],
+      ["demo.mp4", "video/mp4"],
+      ["terms.docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"],
+      ["prices.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"],
+    ]) {
+      const r = checkUpload({ fileName, contentType, size: MB }, "QUOTATION");
+      expect(r.ok, fileName).toBe(false);
+      expect(r.ok === false && r.error, fileName).toContain("PDF");
+    }
+  });
+
+  it("leaves the other kinds of item as they were: a product may still have a Word file", () => {
+    const word = { fileName: "terms.docx", contentType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", size: MB };
+    expect(checkUpload(word, "PRODUCT").ok).toBe(true);
+    expect(checkUpload(word).ok).toBe(true);
+  });
+
+  it("keeps the size limits of PDFs (25 MB) and pictures (15 MB)", () => {
+    expect(checkUpload({ fileName: "a.pdf", contentType: "application/pdf", size: 25 * MB }, "QUOTATION").ok).toBe(true);
+    expect(checkUpload({ fileName: "a.pdf", contentType: "application/pdf", size: 26 * MB }, "QUOTATION").ok).toBe(false);
+    expect(checkUpload({ fileName: "a.png", contentType: "image/png", size: 16 * MB }, "QUOTATION").ok).toBe(false);
+  });
+
+  it("tells a PDF from a picture, and refuses to print anything else", () => {
+    expect(sheetKindOf("application/pdf")).toBe("pdf");
+    expect(sheetKindOf("image/png")).toBe("image");
+    expect(sheetKindOf("image/webp")).toBe("image");
+    expect(sheetKindOf("image/heic")).toBeNull();
+    expect(sheetKindOf("video/mp4")).toBeNull();
+    expect(sheetKindOf("application/msword")).toBeNull();
+  });
+
+  it("offers only printable types in the file picker", () => {
+    const types = SHEET_ACCEPT.split(",");
+    expect(types).toContain("application/pdf");
+    expect(types).toContain("image/jpeg");
+    expect(types.some((t) => t.startsWith("video/") || t.includes("heic") || t.includes("word"))).toBe(false);
+  });
+
+  it("allows ten sheets to a quotation and keeps the old limit for everything else", () => {
+    expect(maxAttachmentsFor("QUOTATION")).toBe(MAX_SHEETS_PER_QUOTATION);
+    expect(MAX_SHEETS_PER_QUOTATION).toBe(10);
+    expect(maxAttachmentsFor("PRODUCT")).toBe(MAX_ATTACHMENTS_PER_ITEM);
+  });
+
+  it("stores them under leads/ like every other file", () => {
+    expect(attachmentKey("QUOTATION", "q1", "id1", "Terms and conditions.pdf")).toBe(
+      "leads/attachments/quotation/q1/id1-Terms and conditions.pdf",
+    );
   });
 });
 
@@ -154,6 +226,13 @@ describe("attachmentRights", () => {
     expect(attachmentRights("INSTALLATION", facts("INSTALLATION", { assignedToId: "me" }))).toEqual({ view: true, upload: true, removeAny: false });
     expect(attachmentRights("INSTALLATION", facts("INSTALLATION", { assignedToId: "other" })).upload).toBe(false);
     expect(attachmentRights("INSTALLATION", facts("ADMIN", { moduleManage: true })).removeAny).toBe(true);
+  });
+
+  it("lets whoever may edit a quotation add and remove its extra sheets, and everyone who may open it see them", () => {
+    expect(attachmentRights("QUOTATION", facts("SALES", { moduleManage: true }))).toEqual({ view: true, upload: true, removeAny: true });
+    expect(attachmentRights("QUOTATION", facts("DESIGN"))).toEqual({ view: true, upload: false, removeAny: false });
+    expect(attachmentRights("QUOTATION", facts("SALES", { leadVisible: false })).view).toBe(false);
+    expect(attachmentRights("QUOTATION", facts("INSTALLATION", { moduleView: false })).view).toBe(false);
   });
 
   it("lets whoever raised or was given a ticket add photos to it", () => {

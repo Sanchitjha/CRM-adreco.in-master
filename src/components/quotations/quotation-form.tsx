@@ -372,6 +372,10 @@ export function QuotationForm({
           />
         </div>
       </div>
+      <p className="text-xs text-slate-500">
+        Extra sheets, such as your terms and conditions sheet or the technical specification sheet of the heat pump, are
+        added on the quotation page after you save. They print after the quotation.
+      </p>
 
       {state.error && (
         <p className="form-error flex items-center gap-2">
