@@ -7,6 +7,11 @@ function getClient() {
   if (!globalForS3.s3Client) {
     globalForS3.s3Client = new S3Client({
       region: process.env.AWS_REGION || "ap-south-1",
+      // Without these two lines the AWS library adds a checksum of an EMPTY body (x-amz-checksum-crc32) to every signed
+      // upload link. The browser then sends a real file, S3 compares the two checksums and refuses the upload. A link
+      // cannot carry the checksum of a file that does not exist yet, so checksums are only added where S3 requires one.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
       credentials: process.env.AWS_ACCESS_KEY_ID
         ? {
             accessKeyId: process.env.AWS_ACCESS_KEY_ID,
