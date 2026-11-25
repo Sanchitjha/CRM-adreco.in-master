@@ -4,7 +4,7 @@ import { useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { FileText, Film, ImageOff, Trash2, Upload } from "lucide-react";
 import { confirmAttachment, removeAttachment, requestAttachmentUpload } from "@/app/(dashboard)/attachment-actions";
-import { ATTACHMENT_ACCEPT, formatBytes, type AttachmentKind } from "@/lib/attachments";
+import { ATTACHMENT_ACCEPT, MAX_SHEETS_PER_QUOTATION, SHEET_ACCEPT, formatBytes, type AttachmentKind } from "@/lib/attachments";
 
 export type AttachmentItem = {
   id: string;
@@ -24,13 +24,17 @@ export function AttachmentsView({
   items,
   canUpload,
   storageReady,
+  variant = "gallery",
 }: {
   entityType: string;
   entityId: string;
   items: AttachmentItem[];
   canUpload: boolean;
   storageReady: boolean;
+  /** "sheets": the extra sheets of a quotation, a numbered list in printing order (PDF or pictures only). */
+  variant?: "gallery" | "sheets";
 }) {
+  const sheets = variant === "sheets";
   const router = useRouter();
   const input = useRef<HTMLInputElement>(null);
   const [status, setStatus] = useState<string | null>(null);
@@ -94,18 +98,22 @@ export function AttachmentsView({
         <div className="flex flex-wrap items-center gap-3">
           <label className={`btn btn-secondary btn-sm ${busy || !storageReady ? "pointer-events-none opacity-60" : "cursor-pointer"}`}>
             <Upload className="size-3.5" />
-            {busy ? "Uploading…" : "Add photos, videos or files"}
+            {busy ? "Uploading…" : sheets ? "Add a sheet (PDF or picture)" : "Add photos, videos or files"}
             <input
               ref={input}
               type="file"
               multiple
-              accept={ATTACHMENT_ACCEPT}
+              accept={sheets ? SHEET_ACCEPT : ATTACHMENT_ACCEPT}
               className="hidden"
               disabled={busy || !storageReady}
               onChange={onPick}
             />
           </label>
-          <span className="text-xs text-slate-400">Photos up to 15 MB, videos up to 300 MB, documents up to 25 MB.</span>
+          <span className="text-xs text-slate-400">
+            {sheets
+              ? `PDF, JPG, PNG, WebP or GIF, up to 25 MB each; up to ${MAX_SHEETS_PER_QUOTATION} sheets.`
+              : "Photos up to 15 MB, videos up to 300 MB, documents up to 25 MB."}
+          </span>
         </div>
       )}
       {!storageReady && (
@@ -123,7 +131,13 @@ export function AttachmentsView({
       )}
 
       {items.length === 0 ? (
-        <p className="text-sm text-slate-400">Nothing added yet.</p>
+        <p className="text-sm text-slate-400">
+          {sheets
+            ? "No extra sheets yet. Add the terms and conditions, or the technical specification sheet of the heat pump."
+            : "Nothing added yet."}
+        </p>
+      ) : sheets ? (
+        <SheetList items={items} onRemove={remove} disabled={removing} />
       ) : (
         <>
           {photosAndVideos.length > 0 && (
@@ -168,6 +182,63 @@ export function AttachmentsView({
 
 function meta(item: AttachmentItem): string {
   return `${formatBytes(item.size)} · ${item.uploadedByName} · ${new Date(item.createdAt).toLocaleDateString("en-IN")}`;
+}
+
+/** The extra sheets of a quotation, numbered in the order they print (the order they were added). */
+function SheetList({
+  items,
+  onRemove,
+  disabled,
+}: {
+  items: AttachmentItem[];
+  onRemove: (item: AttachmentItem) => void;
+  disabled: boolean;
+}) {
+  return (
+    <ol className="divide-y divide-[var(--border)] rounded-lg border border-[var(--border)]">
+      {items.map((item, index) => (
+        <li key={item.id} className="flex items-center gap-3 px-3 py-2.5">
+          <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+            {index + 1}
+          </span>
+          <SheetThumb item={item} />
+          <div className="min-w-0 flex-1">
+            {item.url ? (
+              <a href={item.url} target="_blank" rel="noreferrer" className="block truncate text-sm font-medium text-brand-600 hover:underline">
+                {item.fileName}
+              </a>
+            ) : (
+              <span className="block truncate text-sm font-medium text-slate-700">{item.fileName}</span>
+            )}
+            <span className="text-xs text-slate-400">
+              {item.kind === "file" ? "PDF" : "Picture"} · {meta(item)}
+            </span>
+          </div>
+          {item.canRemove && (
+            <button type="button" onClick={() => onRemove(item)} disabled={disabled} className="btn btn-ghost btn-sm" aria-label={`Remove ${item.fileName}`}>
+              <Trash2 className="size-3.5" />
+            </button>
+          )}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function SheetThumb({ item }: { item: AttachmentItem }) {
+  const [broken, setBroken] = useState(false);
+  if (item.kind === "photo" && item.url && !broken) {
+    return (
+      // The link is a short-lived signed address, so the plain element is the right one here.
+      // eslint-disable-next-line @next/next/no-img-element
+      <img src={item.url} alt="" loading="lazy" onError={() => setBroken(true)} className="size-10 shrink-0 rounded border border-[var(--border)] object-cover" />
+    );
+  }
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded border border-[var(--border)] bg-slate-50 text-slate-400">
+      <FileText className="size-5" />
+    </span>
+  );
 }
 
 function Preview({ item }: { item: AttachmentItem }) {

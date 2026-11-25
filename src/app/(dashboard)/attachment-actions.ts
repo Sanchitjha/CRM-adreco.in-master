@@ -7,12 +7,12 @@ import { logActivity } from "@/lib/activity-log";
 import { requireUser } from "@/lib/action-auth";
 import { loadAttachmentRights } from "@/lib/attachment-access";
 import {
-  MAX_ATTACHMENTS_PER_ITEM,
   attachmentKey,
   attachmentPath,
   checkUpload,
   isAttachmentEntity,
   keyBelongsTo,
+  maxAttachmentsFor,
   safeFileName,
   type AttachmentEntityType,
 } from "@/lib/attachments";
@@ -27,6 +27,7 @@ const LOG_ENTITY: Record<AttachmentEntityType, string> = {
   SITE_SURVEY: "SiteSurvey",
   INSTALLATION: "Installation",
   SERVICE_TICKET: "ServiceTicket",
+  QUOTATION: "Quotation",
 };
 
 const NOT_ALLOWED = "You do not have access to add files here.";
@@ -46,12 +47,19 @@ export async function requestAttachmentUpload(
   const rights = await loadAttachmentRights(user, entityType, entityId);
   if (!rights?.upload) return { ok: false, error: NOT_ALLOWED };
 
-  const check = checkUpload({ fileName, contentType, size });
+  const check = checkUpload({ fileName, contentType, size }, entityType);
   if (!check.ok) return check;
 
   const existing = await prisma.attachment.count({ where: { entityType, entityId } });
-  if (existing >= MAX_ATTACHMENTS_PER_ITEM) {
-    return { ok: false, error: `Up to ${MAX_ATTACHMENTS_PER_ITEM} files can be added here. Remove some first.` };
+  const max = maxAttachmentsFor(entityType);
+  if (existing >= max) {
+    return {
+      ok: false,
+      error:
+        entityType === "QUOTATION"
+          ? `A quotation can have up to ${max} extra sheets. Remove one first.`
+          : `Up to ${max} files can be added here. Remove some first.`,
+    };
   }
 
   const id = randomUUID();
@@ -78,7 +86,7 @@ export async function confirmAttachment(
 
   const size = await getObjectSize(key);
   if (size === null) return { ok: false, error: "The file did not reach storage. Please try again." };
-  const check = checkUpload({ fileName, contentType, size });
+  const check = checkUpload({ fileName, contentType, size }, entityType);
   if (!check.ok) return check;
 
   try {

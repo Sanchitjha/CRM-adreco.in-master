@@ -31,12 +31,14 @@ enum StageStatus {
   COMPLETED
 }
 
-/// What a photo, video or file is attached to (see model Attachment).
+/// What a photo, video or file is attached to (see model Attachment). A QUOTATION's files are its "extra sheets": the
+/// terms and conditions, the technical specification of the heat pump, and so on, printed after the quotation.
 enum AttachmentEntity {
   PRODUCT
   SITE_SURVEY
   INSTALLATION
   SERVICE_TICKET
+  QUOTATION
 }
 
 enum DocumentStatus {
@@ -521,12 +523,14 @@ model LeadEmail {
   @@index([sentById, createdAt])
 }
 
-/// A photo, video or file attached to a product, site survey, installation or service ticket. The file itself sits in
-/// the private S3 bucket under s3Key; this row says what it is and who added it. Lead documents have their own table.
+/// A photo, video or file attached to a product, site survey, installation, service ticket or quotation. The file itself
+/// sits in the private S3 bucket under s3Key; this row says what it is and who added it. Lead documents have their own
+/// table.
 model Attachment {
   id           String           @id @default(cuid())
   entityType   AttachmentEntity
-  /// The id of the product, survey, installation or ticket (not a foreign key, because it can point at four tables).
+  /// The id of the product, survey, installation, ticket or quotation (not a foreign key, because it can point at five
+  /// tables).
   entityId     String
   fileName     String
   contentType  String

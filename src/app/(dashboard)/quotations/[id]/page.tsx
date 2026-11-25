@@ -8,6 +8,7 @@ import { canEditQuotation, canSeeQuotation } from "@/lib/scope";
 import { formatINR } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
 import { SectionCard, Avatar } from "@/components/ui";
+import { AttachmentsPanel } from "@/components/attachments/attachments-panel";
 import { QuoteStatusBadge } from "@/components/quotations/quote-status-badge";
 import { QuoteStatusControl } from "@/components/quotations/quote-status-control";
 import { WhatsAppAction } from "@/components/whatsapp/whatsapp-modal";
@@ -145,6 +146,13 @@ export default async function QuotationDetailPage({ params }: { params: Promise<
               )}
             </div>
           )}
+
+          <AttachmentsPanel
+            entityType="QUOTATION"
+            entityId={quote.id}
+            variant="sheets"
+            description="Add your terms and conditions sheet and the technical specification sheet of the heat pump. They print after the quotation (Print / PDF), in the order shown."
+          />
         </div>
 
         <div className="space-y-6">

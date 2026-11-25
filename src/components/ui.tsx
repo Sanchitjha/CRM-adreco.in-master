@@ -73,8 +73,9 @@ export function SectionCard({
     <section className={cn("card overflow-hidden", className)}>
       <header className="flex items-center justify-between gap-3 border-b border-[var(--border)] px-5 py-3.5">
         <div className="flex items-center gap-2.5">
-          {Icon && <Icon className="size-4 text-slate-400" strokeWidth={2} />}
-          <div>
+          {/* shrink-0: a long description would otherwise squeeze the icon to a speck. */}
+          {Icon && <Icon className="size-4 shrink-0 text-slate-400" strokeWidth={2} />}
+          <div className="min-w-0">
             <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
             {description && <p className="text-xs text-slate-500">{description}</p>}
           </div>

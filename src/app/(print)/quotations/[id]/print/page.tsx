@@ -10,7 +10,9 @@ import { amountInWords } from "@/lib/amount-in-words";
 import { formatDate } from "@/lib/dates";
 import { formatINR } from "@/lib/utils";
 import { computeQuoteTotals } from "@/lib/validation/quotation";
+import { loadPrintSheets } from "@/lib/quotation-sheets";
 import { PrintButton } from "@/components/print-button";
+import { ExtraSheets } from "@/components/quotations/extra-sheets";
 
 export default async function PrintQuotationPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -27,6 +29,9 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
     getCompanyProfile(),
   ]);
   if (!quote || !canSeeQuotation(role, userId, quote)) notFound();
+
+  // The terms and conditions, the technical specification and any other sheet added to the quotation print after it.
+  const sheets = await loadPrintSheets(quote.id);
 
   const totals = computeQuoteTotals({
     items: quote.items.map((i) => ({ quantity: i.quantity, unitPrice: Number(i.unitPrice) })),
@@ -212,6 +217,8 @@ export default async function PrintQuotationPage({ params }: { params: Promise<{
           </tbody>
         </table>
       </article>
+
+      <ExtraSheets sheets={sheets} />
     </div>
   );
 }
